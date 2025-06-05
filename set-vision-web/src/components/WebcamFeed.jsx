@@ -2,27 +2,57 @@ import React, { useEffect, useRef } from 'react';
 
 export default function WebcamFeed({ gameStarted }) {
   const videoRef = useRef();
+  const streamRef = useRef();
 
   useEffect(() => {
     if (gameStarted) {
       navigator.mediaDevices.getUserMedia({ video: true })
         .then(stream => {
-          videoRef.current.srcObject = stream;
-        }).catch(err => {
-          console.error('Camera error:', err);
-        });
+          streamRef.current = stream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        })
+        .catch(err => console.error("Webcam error:", err));
+    } else {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+        if (videoRef.current) {
+          videoRef.current.srcObject = null;
+        }
+      }
     }
+
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    };
   }, [gameStarted]);
 
   return (
     <div className="webcam-container">
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        className="webcam-video"
-      />
+      <div className="video-wrapper">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="webcam-video"
+        />
+        {!gameStarted && (
+          <div className="camera-overlay">
+            <p>📷 Camera is off — Press "Start Game"</p>
+          </div>
+        )}
+        {gameStarted && (
+          <div className="camera-overlay">
+            <p>📷 Camera is on — good luck</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

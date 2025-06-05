@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import './HeaderMenu.css';
+import { FiHelpCircle, FiSettings } from "react-icons/fi"; // Feather icons
+
 
 export default function HeaderMenu() {
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -14,7 +16,9 @@ export default function HeaderMenu() {
     <div className="header-menu">
       {/* ❓ Help */}
       <div className="menu-item hoverable">
-        <button className="menu-button">❓</button>
+        <button className="menu-button" aria-label='help'>
+            <FiHelpCircle size={20} />
+          </button>
         <div className="menu-dropdown help-dropdown">
           <h4>Game Help</h4>
           <p>This is a SET game between you and an AI agent.</p>
@@ -26,9 +30,10 @@ export default function HeaderMenu() {
       <div className="menu-item">
         <button
           className="menu-button"
-          onClick={() => setSettingsOpen(!settingsOpen)}
+          onClick={() => setSettingsOpen(!settingsOpen)} 
+          aria-label="Settings"
         >
-          ⚙️
+          <FiSettings size={20} />
         </button>
         {settingsOpen && (
           <div className="menu-dropdown">

@@ -1,25 +1,65 @@
+:root{
+  /* SET Game Feature Colors */
+--set-red:     #e63946;
+--set-green:   #00aa1f;
+--set-purple:  #9d4edd;
+
+/* UI Neutrals + Accents */
+--dark-bg:     #150b0e;
+--gray-panel:  #1a1f25;
+--blue-accent: #08f;
+--off-white:   #f4f4f8;
+}
+
+/* === Base Theme === */
 body {
   font-family: 'Segoe UI', sans-serif;
-  background: #0f0f0f;
-  color: #f5f5f5;
+  background: var(--dark-bg);
+  color: var(--off-white);
   margin: 0;
   padding: 1rem;
   display: flex;
   justify-content: center;
 }
 
+/* === App Container === */
 .app {
-  width: 100%;
-  max-width: 900px;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 80px 20px 20px;
   text-align: center;
+  background: var(--dark-bg);
 }
 
-h1 {
-  margin-bottom: 1rem;
-  color: #08f;
+/* === Title Bar === */
+.app-header {
+  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 999;
+  background: linear-gradient(230deg, #9d4edd, #00aa1f, #e63946);
+  padding: 12px 0;
+  color: #ffffff;
+  font-size: 1.8rem;
+  font-weight: bold;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.title-strip {
+  width: 100%;
+  padding: 0px;
+}
+
+.title-strip h1 {
+  margin: 0;
   font-size: 2rem;
+  letter-spacing: 1.2px;
+  text-shadow: 2px 2px 2px #000000;
 }
 
+/* === Video Feed === */
 .webcam-container {
   width: 100%;
   display: flex;
@@ -30,12 +70,14 @@ h1 {
 .webcam-video {
   width: 100%;
   max-width: 800px;
-  height: 450px; /* ⬅️ FIXED HEIGHT TO AVOID COLLAPSE */
-  background-color: #111; /* Optional: gray box before stream loads */
+  height: 450px;
+  background-color: var(--gray-panel);
   border-radius: 10px;
-  box-shadow: 0 0 20px rgba(0, 136, 255, 0.4);
+  box-shadow: 0 0 15px var(--blue-accent);
   object-fit: cover;
 }
+
+/* === Controls === */
 .controls-container {
   margin-top: 20px;
   display: flex;
@@ -43,23 +85,23 @@ h1 {
 }
 
 .start-game-wrapper {
-  background: #111;
   padding: 20px;
-  border: 2px dashed #08f;
+  border: 2px dashed var(--blue-accent);
   border-radius: 8px;
   width: fit-content;
   transition: all 0.3s ease-in-out;
 }
 
 .start-game-wrapper:hover {
-  background: #181818;
+  background: var(--gray-panel);
+  box-shadow: 0 0 15px rgba(8, 136, 255, 0.5);
   transform: scale(1.05);
 }
 
 .start-game-button {
   padding: 10px 20px;
   font-size: 1.2rem;
-  background-color: #08f;
+  background-color: var(--set-green);
   color: white;
   border: none;
   border-radius: 6px;
@@ -68,44 +110,65 @@ h1 {
 }
 
 .start-game-button:hover {
-  background-color: #06c;
+  background-color: #21867a;
   transform: scale(1.05);
 }
 
+/* === Stop Game Button === */
+.stop-game-button {
+  padding: 10px 20px;
+  font-size: 1.2rem;
+  background-color: var(--set-red);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.stop-game-button:hover {
+  background: #c62828;
+  transform: scale(1.05);
+}
+
+
+/* === Status Panel === */
 .status-panel {
   margin-top: 20px;
   font-size: 1.1rem;
-  color: #ccc;
+  color: #cecece;
 }
 
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin-top: 1rem;
+/* === Icon Buttons: Help + Settings === */
+.header-menu {
+  position: fixed;
+  top: 10px;
+  right: 20px;
+  display: flex;
+  gap: 12px;
+  z-index: 999;
 }
 
-.card {
-  background: #222;
-  padding: 20px;
-  border: 1px solid #444;
-  border-radius: 4px;
+.menu-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(145deg, #0f0f0f, #1c1c1c);
+  box-shadow: 0 0 10px rgba(8, 136, 255, 0.4);
+  color: #08f;
+  font-size: 1.4rem;
+  cursor: pointer;
+  transition: all 0.25s ease-in-out;
+  line-height: 1;
+  padding: 0;
 }
 
-.app {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 20px;
-  text-align: center;
-}
-
-.app-header {
-  background-color: #08f;
-  padding: 12px 0;
-  color: white;
-  font-size: 1.8rem;
-  font-weight: bold;
-  text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  margin-bottom: 1rem;
+.menu-button:hover {
+  transform: scale(1.15);
+  background: linear-gradient(145deg, #111, #222);
+  box-shadow: 0 0 12px rgba(8, 136, 255, 0.6), 0 0 4px rgba(8, 136, 255, 0.8);
 }

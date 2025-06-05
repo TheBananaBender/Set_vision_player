@@ -1,14 +1,23 @@
-import React from 'react';
+import React from 'react'; 
+import "../styles.css"; // Import global styles
 
-export default function GameControls({ onStart, isVisible }) {
-  if (!isVisible) return null; // 🔥 vanish when hidden
+export default function GameControls({ gameStarted, hasStartedBefore, onStart, onStop }) {
+  const handleClick = () => {
+    gameStarted ? onStop() : onStart();
+  };
 
-  return (
+  const buttonLabel = () => {
+    if (gameStarted) return '🟥 Stop Game';
+    if (hasStartedBefore) return '🔁 Restart Game';
+    return '🟢 Start Game';
+  };
+
+ return (
     <div className="controls-container">
-      <div className="start-game-wrapper">
-        <button onClick={onStart} className="start-game-button">
-          🎮 Start Game
-        </button>
+      <div className='start-game-wrapper'>
+      <button onClick={handleClick} className={`${gameStarted ? 'stop' : 'start'}-game-button `}>
+        {buttonLabel()}
+      </button>
       </div>
     </div>
   );
