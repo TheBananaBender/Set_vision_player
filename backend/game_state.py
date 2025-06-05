@@ -4,7 +4,7 @@ class GameState:
         self.player_score = 0
         self.ai_score = 0
         self.settings = {
-            "difficulty": "Medium",
+            "difficulty": "Easy",
             "delay": 3.0,
             "sound_on": True
         }
@@ -18,6 +18,7 @@ class GameState:
 
     def start(self):
         self.running = True
+        self.last_ai_response = "AI is thinking..."
 
     def stop(self):
         self.running = False

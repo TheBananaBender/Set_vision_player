@@ -23,6 +23,17 @@ export default function App() {
     });
   };
 
+  const handleReset = () => {
+  setGameStarted(false);
+  setHasStartedBefore(false);
+  setStatus("Game reset.");
+  fetch('http://localhost:8000/control', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'reset' }),
+  });
+};
+
   // 🟥 Stop Game Logic
   const handleStop = () => {
     setGameStarted(false);
@@ -47,10 +58,12 @@ export default function App() {
       <WebcamFeed gameStarted={gameStarted} />
       
       <GameControls 
-        gameStarted={gameStarted}
-        onStart={handleStart}
-        onStop={handleStop}
-    />
+      gameStarted={gameStarted}
+      hasStartedBefore={hasStartedBefore}
+      onStart={handleStart}
+      onStop={handleStop}
+      onReset={handleReset}
+/>
 
       
 

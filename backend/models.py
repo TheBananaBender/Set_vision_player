@@ -11,7 +11,7 @@ class GameControl(BaseModel):
 
 
 class Settings(BaseModel):
-    difficulty: Literal["Easy", "Medium", "Hard"]
+    difficulty: Literal["Easy", "Medium", "Hard", "Insane"]
     delay: float
     sound_on: bool
 

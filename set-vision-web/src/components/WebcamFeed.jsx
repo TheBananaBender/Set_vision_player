@@ -42,16 +42,10 @@ export default function WebcamFeed({ gameStarted }) {
           muted
           className="webcam-video"
         />
-        {!gameStarted && (
           <div className="camera-overlay">
-            <p>📷 Camera is off — Press "Start Game"</p>
+            <p>{!gameStarted ? '📷 Camera is off — Press "Start Game"' :'📷 Camera is on — good luck'}</p>
           </div>
-        )}
-        {gameStarted && (
-          <div className="camera-overlay">
-            <p>📷 Camera is on — good luck</p>
-          </div>
-        )}
+
       </div>
     </div>
   );
