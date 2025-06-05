@@ -16,7 +16,13 @@ export default function WebcamFeed({ gameStarted }) {
 
   return (
     <div className="webcam-container">
-      <video ref={videoRef} autoPlay playsInline muted width="480" height="360" />
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        className="webcam-video"
+      />
     </div>
   );
 }
