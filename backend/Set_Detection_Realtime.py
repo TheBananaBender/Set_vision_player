@@ -7,6 +7,7 @@ from torchvision import models
 import torch.nn as nn
 from torchvision.transforms import v2
 
+# This is a script for set detection using classical computer vision techniques (openCV)
 
 class MultiHeadEfficientNet(nn.Module):
     def __init__(self):
@@ -33,7 +34,8 @@ class MultiHeadEfficientNet(nn.Module):
             self.head_number(x),
             self.head_shading(x)
         )
-
+    
+ 
 def order_box_points(pts):
     rect = np.zeros((4, 2), dtype="float32")
     s = pts.sum(axis=1)
@@ -45,6 +47,11 @@ def order_box_points(pts):
     return rect
 
 def detect_cards_in_frame(frame):
+    """
+    [IRRELEVANT] This function is retained for historical reference.
+    As the project evolved into a more robust solution using deep learning,
+    Do not use in new code.
+    """
     height, width = frame.shape[:2]
     scale = 600.0 / width
     resized = cv2.resize(frame, (600, int(height * scale)))
@@ -87,6 +94,9 @@ def warp_card(image, box, output_size=(256, 256)):
     return cv2.warpPerspective(image, M, output_size)
 
 def preprocess_for_model(img):
+    """
+    Preprocess the image for the classification model.
+    """
     transform = v2.Compose([
         v2.ToImage(),
         v2.ToDtype(torch.float32, scale=True),
@@ -98,6 +108,8 @@ def preprocess_for_model(img):
     return pil_img.unsqueeze(0)
 
 def decode_prediction(preds):
+    """
+    Decode the model's predictions into a human-readable format."""
     color_map = ['Red', 'Green', 'Purple']
     shape_map = ['Diamond', 'Squiggle', 'Oval']
     number_map = ['One', 'Two', 'Three']
@@ -105,7 +117,7 @@ def decode_prediction(preds):
     c, s, n, sh = [torch.argmax(p, dim=1).item() for p in preds]
     return f"{color_map[c]} {shape_map[s]} {number_map[n]} {shading_map[sh]}"
 
-def main():
+"""def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = MultiHeadEfficientNet().to(device)
     model.load_state_dict(torch.load("set_card_model.pth", map_location=device))  # <- set correct path
@@ -152,6 +164,7 @@ def main():
 
     cap.release()
     cv2.destroyAllWindows()
+    """
 
 if __name__ == "__main__":
     main()
