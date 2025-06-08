@@ -1,25 +1,20 @@
 import itertools
-import random
-import threading
 import models as model
 
+# Constants for card attributes
+# Each attribute has three possible values, represented as integers
 COLOR = {0: "Red", 1: "Green", 2: "Purple"}
 NUMBER = {0: "One", 1: "Two", 2: "Three"}
 SHADING = {0: "Solid", 1: "Striped", 2: "Open"}
 SHAPE = {0: "Diamond", 1: "Squiggle", 2: "Oval"}
 
-time_distributions = {
-    "Easy": 1.0,
-    "Medium": 0.8,
-    "Hard": 0.7,
-    "insane": 0.5
-}
-Draw_Delay = {
-    "Easy": 1.0,
-    "Medium": 0.9,
-    "Hard": 0.8,
-    "insane": 0.6
-}
+# Inverse mappings for easy access
+COLOR_INV = {"Red": 0, "Green": 1, "Purple": 2}
+NUMBER_INV = {"One": 0, "Two": 1, "Three": 2}
+SHADING_INV = {"Solid": 0, "Striped": 1, "Open": 2}
+SHAPE_INV = {"Diamond": 0, "Squiggle": 1, "Oval": 2}
+
+
 
 class card():
     def __init__(self, color, number, shading, shape):
@@ -228,49 +223,3 @@ class Deck():
 
     is_empty = lambda self: len(self.cards) == 0
 
-class AI_Player(Player):
-    def __init__(self, name, board, score, id, difficulty="Easy"):
-        super().__init__(name, board, score, id)
-        self.difficulty = difficulty
-        self.time_dist = time_distributions.get(difficulty, 1.0)
-        self.error_chance = {
-            "Easy": 0.1,
-            "Medium": 0.2,
-            "Hard": 0.3,
-            "insane": 0.4
-        }.get(difficulty, 0.1)
-
-    def make_move(self):
-        # non-blocking delay
-        threading.Timer(self.time_dist, self._make_move_logic).start()
-
-    def _make_move_logic(self):
-        all_cards = list(self.board.cards)
-
-        if not self.board.does_set_exist():
-            print(f"[{self.name}] 🤖 No sets found on the board.")
-            return False
-
-        valid_sets = self.board.find_all_sets()
-        make_mistake = random.random() < self.error_chance
-
-        if not make_mistake:
-            selected_set = random.choice(valid_sets)
-            success = self.set_attempt(*selected_set)
-            if success:
-                print(f"[{self.name}] ✅ AI correctly found a SET! (+1)")
-            else:
-                print(f"[{self.name}] ❌ AI failed on a correct set.")
-            return success
-        else:
-            # AI makes a mistake
-            tries = 0
-            while tries < 10:
-                mistake_cards = random.sample(all_cards, 3)
-                if not self.board.is_set(*mistake_cards):
-                    self.set_attempt(*mistake_cards)
-                    print(f"[{self.name}] 🎭 AI made a mistake (difficulty: {self.difficulty}) (-1)")
-                    return False
-                tries += 1
-            print(f"[{self.name}] 🤷 AI couldn't find fake mistake — skipped.")
-            return False
