@@ -6,17 +6,9 @@ import torch.nn.functional as F
 from torchvision import models
 import torch.nn as nn
 from torchvision.transforms import v2
-import Set_game_mechanics
 
 
 class MultiHeadMobileNetV3(nn.Module):
-    """
-    Multi-head MobileNetV3 model for SET card detection.
-    This model uses the MobileNetV3 architecture and has four heads for predicting each attribute of the SET card:
-    color, shape, number, and shading.
-    Each head outputs a probability distribution over three classes for its respective attribute.
-    The model is designed to be lightweight and efficient, suitable for real-time applications.
-    """
     def __init__(self):
         super().__init__()
         base = models.mobilenet_v3_large(weights=None)
@@ -54,12 +46,6 @@ def order_box_points(pts):
     return rect
 
 def detect_cards_in_frame(frame):
-    """"
-    ###IRRELEVANT method ###
-    Detect SET cards in a given frame using contour detection. 
-    with classical image processing methods
-    Returns a list of bounding boxes for detected cards.
-    """
     height, width = frame.shape[:2]
     scale = 600.0 / width
     resized = cv2.resize(frame, (600, int(height * scale)))
@@ -114,8 +100,6 @@ def preprocess_for_model(img):
     pil_img = transform(img_rgb)
     return pil_img.unsqueeze(0)
 
-
-
 def decode_prediction(preds):
     color_map = ['Red', 'Green', 'Purple']
     shape_map = ['Diamond', 'Squiggle', 'Oval']
@@ -123,35 +107,6 @@ def decode_prediction(preds):
     shading_map = ['Solid', 'Striped', 'Open']
     c, s, n, sh = [torch.argmax(p, dim=1).item() for p in preds]
     return f"{color_map[c]} {shape_map[s]} {number_map[n]} {shading_map[sh]}"
-
-
-def predictions_to_set_cards(preds):
-    """
-    Convert model predictions to a list of SET card objects.
-    arguments:
-    preds: tuple of tensors (color, shape, number, shading)
-    where each tensor has shape (batch_size, 3)
-    """
-    COLOR = {0: "Red", 1: "Green", 2: "Purple"}
-    NUMBER = {0: "One", 1: "Two", 2: "Three"}
-    SHADING = {0: "Solid", 1: "Striped", 2: "Open"}
-    SHAPE = {0: "Diamond", 1: "Squiggle", 2: "Oval"}
-    color, shape, number, shading = preds
-    cards = []
-    for i in range(color.shape[0]):
-        c = color[i].argmax().item()
-        s = shape[i].argmax().item()
-        n = number[i].argmax().item()
-        sh = shading[i].argmax().item()
-        cards.append(Set_game_mechanics.card(
-            color=COLOR[c],
-            number=NUMBER[n],
-            shading=SHADING[sh],
-            shape=SHAPE[s]
-        ))
-    return cards
-
-
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
