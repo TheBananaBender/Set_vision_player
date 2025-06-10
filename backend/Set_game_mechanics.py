@@ -33,6 +33,8 @@ class card():
                 self.quantity == value.quantity and
                 self.filling == value.filling and
                 self.shape == value.shape)
+    def __repr__(self):
+        return f"Card(color={self.color}, quantity={self.quantity}, filling={self.filling}, shape={self.shape})"
 
 
 class Board():

@@ -1,76 +1,71 @@
-import time
-from utils import decode_base64_image
-from threading import Timer
-from models import VisionAgent
-from Set_game_mechanics import Player
+import threading
 import random
+import time
 
-
-time_distributions = {
-    "Easy": 1.0,
-    "Medium": 0.8,
-    "Hard": 0.7,
-    "insane": 0.5
-}
-Draw_Delay = {
-    "Easy": 1.0,
-    "Medium": 0.9,
-    "Hard": 0.8,
-    "insane": 0.6
-}
-
-
-def process_frame(image_b64, settings: dict) -> str:
-    image = decode_base64_image(image_b64)
-    time.sleep(settings.get("delay", 1))  # simulate compute time
-    # TODO: AI detection here
-    return "SET found at A1, B2, C3"  # stub hint
-
-
-
-class AI_Player(Player):
-    def __init__(self, name, board, score, id, difficulty="Easy"):
-        super().__init__(name, board, score, id)
+class AIPlayer(Player):
+    def __init__(self, name, board, difficulty='medium'):
+        super().__init__(name)
+        self.board = board
         self.difficulty = difficulty
-        self.time_dist = time_distributions.get(difficulty, 1.0)
-        self.error_chance = {
-            "Easy": 0.1,
-            "Medium": 0.2,
-            "Hard": 0.3,
-            "insane": 0.4
-        }.get(difficulty, 0.1)
+        self._set_thinking_time()
+        self._stop_event = threading.Event()
+        self._thread = threading.Thread(target=self._play_loop, daemon=True)
 
-    def make_move(self):
-        # non-blocking delay
-        Timer(self.time_dist, self._make_move_logic).start()
+    def _set_thinking_time(self):
+        self.thinking_time_range = {
+            'easy': (5, 10),
+            'medium': (3, 6),
+            'hard': (1, 3)
+        }.get(self.difficulty.lower(), (3, 6))
 
-    def _make_move_logic(self):
-        all_cards = list(self.board.cards)
+    def _difficulty_scale(self, set_difficulty):
+        return {
+            1: 0.5,
+            2: 1.0,
+            3: 1.5,
+            4: 2.0
+        }.get(set_difficulty, 1.0)
 
-        if not self.board.does_set_exist():
-            print(f"[{self.name}] No sets found on the board.")
+    def _compute_set_difficulty(self, card1, card2, card3):
+        return sum(
+            len({card1[i], card2[i], card3[i]}) > 1
+            for i in range(4)  # Assuming 4 attributes per card
+        )
+
+    def _claim_set(self, cards):
+        if not self.board.has_cards(cards):
+            return False
+        try:
+            for card in cards:
+                self.board.remove_card(card)
+            return True
+        except Exception:
             return False
 
-        valid_sets = self.board.find_all_sets()
-        make_mistake = random.random() < self.error_chance
+    def _play_loop(self):
+        while not self._stop_event.is_set():
+            if not self.board.does_set_exist():
+                time.sleep(0.5)
+                continue
 
-        if not make_mistake:
-            selected_set = random.choice(valid_sets)
-            success = self.set_attempt(*selected_set)
-            if success:
-                print(f"[{self.name}] AI correctly found a SET! (+1)")
-            else:
-                print(f"[{self.name}] AI failed on a correct set.")
-            return success
-        else:
-            # AI makes a mistake
-            tries = 0
-            while tries < 10:
-                mistake_cards = random.sample(all_cards, 3)
-                if not self.board.is_set(*mistake_cards):
-                    self.set_attempt(*mistake_cards)
-                    print(f"[{self.name}]  AI made a mistake (difficulty: {self.difficulty}) (-1)")
-                    return False
-                tries += 1
-            print(f"[{self.name}] AI couldn't find fake mistake — skipped.")
-            return False
+            all_sets = self.board.find_all_sets()
+            if not all_sets:
+                time.sleep(0.5)
+                continue
+
+            chosen_set = random.choice(all_sets)
+            difficulty = self._compute_set_difficulty(*chosen_set)
+            base_delay = random.uniform(*self.thinking_time_range)
+            scaled_delay = base_delay * self._difficulty_scale(difficulty)
+
+            time.sleep(scaled_delay)  # simulate "thinking"
+
+            if self._claim_set(chosen_set):
+                self.score += 1
+
+    def start(self):
+        self._thread.start()
+
+    def stop(self):
+        self._stop_event.set()
+        self._thread.join()
