@@ -16,15 +16,15 @@ def main():
     save_interval = 5  # Save every 5 epochs
     device = 0 if torch.cuda.is_available() else 'cpu'
 
-    print(f"🔁 Using device: {device}")
-    print(f"📦 Loading model: {model_type}")
+    print(f" Using device: {device}")
+    print(f" Loading model: {model_type}")
     model = YOLO(model_type)
 
     # 🧠 Training loop using .train() does not expose internals, so we use callbacks
-    print(f"🚀 Training for {epochs} epochs...")
+    print(f" Training for {epochs} epochs...")
     results = model.train(
         data=data_yaml,
-        epochs=epochs,
+        epochs=epochs,  
         imgsz=imgsz,
         batch=batch,
         device=device,
@@ -37,10 +37,10 @@ def main():
     )
 
     # 🔍 Print summary stats
-    print("\n📈 Training finished.")
+    print("\n Training finished.")
     if results:
         metrics = results.metrics
-        print(f"🎯 Final Results:\n{metrics}")
+        print(f" Final Results:\n{metrics}")
 
 if __name__ == '__main__':
     main()
