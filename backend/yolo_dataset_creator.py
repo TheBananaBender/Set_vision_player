@@ -3,9 +3,9 @@ import json
 import cv2
 import numpy as np
 
-input_dir = "sort_input2"
-mask_dir = "sort_res2"
-output_json_dir = "boxes_json2"
+input_dir = "sort_input5"
+mask_dir = "sort_res5"
+output_json_dir = "boxes_json5"
 os.makedirs(output_json_dir, exist_ok=True)
 
 image_extensions = (".jpg", ".jpeg", ".png")

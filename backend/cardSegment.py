@@ -5,8 +5,8 @@ import cv2
 import numpy as np
 
 # Define base folders
-input_dir = "input3"
-output_dir = "res3"
+input_dir = "input6"
+output_dir = "res6"
 
 # === Create the output folder ===
 os.makedirs(output_dir, exist_ok=True)

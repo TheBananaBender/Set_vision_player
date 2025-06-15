@@ -21,7 +21,7 @@ class MultiHeadMobileNetV3(nn.Module):
         self.head_shape   = nn.Linear(in_features, 3)
         self.head_number  = nn.Linear(in_features, 3)
         self.head_shading = nn.Linear(in_features, 3)
-        
+
     def forward(self, x):
         x = self.features(x)
         x = self.pool(x)

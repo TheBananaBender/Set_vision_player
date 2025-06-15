@@ -80,7 +80,7 @@ def decode_prediction(preds):
 
 # --- פונקציה ראשית ---
 def main():
-    image_path = './input2/photo_46_2025-06-08_18-34-19.jpg'
+    image_path = "C:\\Users\\galha\\Documents\\gal\\לימודים\\תואר ראשון מדעי המחשב\\שנה ג\\pythonProject4\\input5\\photo_14_2025-06-15_12-32-06.jpg"
     yolo_model_path = './best.pt'
     classifier_model_path = './mobilenetv3_set_card.pth'
 
@@ -122,8 +122,8 @@ def main():
 
                 draw.polygon(quad, outline='red')
                 cx, cy = np.mean(quad, axis=0).astype(int)
-                font = ImageFont.truetype("arial.ttf", size=24)
-                draw.text((cx - 40, cy), label_with_newline, fill='yellow', font=font)
+                font = ImageFont.truetype("arial.ttf", size=36)
+                draw.text((cx - 40, cy), label_with_newline, fill='blue', font=font)
 
     # Show result
     plt.figure(figsize=(12, 8))

@@ -1,21 +1,24 @@
 import os
 import shutil
 import cv2
+import numpy as np
 
-input_dir = "input2"
-res_dir = "res2"
-output_input_dir = "sort_input2"
-output_res_dir = "sort_res2"
+input_dir = "input5"
+res_dir = "res5"
+output_input_dir = "sort_input5"
+output_res_dir = "sort_res5"
 
 os.makedirs(output_input_dir, exist_ok=True)
 os.makedirs(output_res_dir, exist_ok=True)
 
 image_extensions = (".jpg", ".jpeg", ".png")
 
-for filename in os.listdir(input_dir):
-    if not filename.lower().endswith(image_extensions):
-        continue
+# Filter and sort image files for consistent order
+all_images = [f for f in os.listdir(input_dir) if f.lower().endswith(image_extensions)]
+all_images.sort()
+total = len(all_images)
 
+for idx, filename in enumerate(all_images, start=1):
     base_name = os.path.splitext(filename)[0]
     mask_filename = f"{base_name}_mask.png"
 
@@ -36,16 +39,14 @@ for filename in os.listdir(input_dir):
         print(f"⚠️ Failed to load mask: {mask_path}")
         continue
 
-    # Resize mask to image if needed
     if mask.shape != image.shape[:2]:
         mask = cv2.resize(mask, (image.shape[1], image.shape[0]))
 
-    # Stack side by side
     mask_colored = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
     stacked = cv2.hconcat([image, mask_colored])
     imS = cv2.resize(stacked, (960, 540))
     cv2.imshow("Image | Mask", imS)
-    print(f"✅ {filename} — [y] accept | [n] skip | [q] quit")
+    print(f"✅ {idx}/{total}: {filename} — [y] accept | [n] skip | [b] black mask | [q] quit")
 
     while True:
         key = cv2.waitKey(0) & 0xFF
@@ -53,6 +54,12 @@ for filename in os.listdir(input_dir):
             shutil.copy(image_path, os.path.join(output_input_dir, filename))
             shutil.copy(mask_path, os.path.join(output_res_dir, mask_filename))
             print(f"✅ Accepted: {filename}")
+            break
+        elif key == ord('b'):
+            black_mask = np.zeros(image.shape[:2], dtype=np.uint8)
+            cv2.imwrite(os.path.join(output_res_dir, mask_filename), black_mask)
+            shutil.copy(image_path, os.path.join(output_input_dir, filename))
+            print(f"⬛ Black mask assigned to: {filename}")
             break
         elif key == ord('n'):
             print(f"⏭️ Skipped: {filename}")
@@ -62,6 +69,6 @@ for filename in os.listdir(input_dir):
             cv2.destroyAllWindows()
             exit()
         else:
-            print("❓ Press y / n / q")
+            print("❓ Press y / n / b / q")
 
 cv2.destroyAllWindows()

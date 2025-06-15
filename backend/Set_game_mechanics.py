@@ -1,4 +1,6 @@
 import itertools
+import string
+
 import models as model
 
 # Constants for card attributes
@@ -16,15 +18,37 @@ SHAPE_INV = {"Diamond": 0, "Squiggle": 1, "Oval": 2}
 
 
 
+
+
 class card():
-    def __init__(self, color, number, shading, shape):
-        self.color = color
-        self.quantity = number
-        self.filling = shading
-        self.shape = shape
+    def __init__(self, color, number, shading, shape,polygon):
+        if(isinstance(color,int)):
+            self.color = color
+        else:
+            self.color = COLOR_INV[color]
+
+        if (isinstance(number, int)):
+            self.quantity = number
+        else:
+            self.quantity = NUMBER_INV[number]
+
+        if (isinstance(shading, int)):
+            self.filling = shading
+        else:
+            self.filling = SHADING_INV[shading]
+
+        if (isinstance(shape, int)):
+            self.shape = shape
+        else:
+            self.shape = SHAPE_INV[shape]
+
+        self.polygon = polygon
 
     def __str__(self):
-        return f"{self.color} (Cost: {self.quantity}, Attack: {self.filling}, Defense: {self.shape})"
+        return f"color: {COLOR[self.color]}, quantity: {NUMBER[self.quantity]}, fillig: {SHADING[self.filling]}, Shape: {SHAPE[self.shape]})"
+
+    def __repr__(self):
+        return f"color: {COLOR[self.color]}, quantity: {NUMBER[self.quantity]}, fillig: {SHADING[self.filling]}, Shape: {SHAPE[self.shape]})"
 
     def __eq__(self, value):
         if not isinstance(value, card):
@@ -36,11 +60,24 @@ class card():
 
 
 class Board():
-    def __init__(self, cards=None):
+    def __init__(self, cards=None,refresh_time=5):
         if cards is None:
             self.cards = set()
         else:
             self.cards = cards
+        self.refresh_time= 5
+        self.current_time=0
+
+    def refresh(self,curr_cards):
+        self.current_time +=1
+        print(self.current_time)
+        if self.current_time >= 5:
+            self.cards = curr_cards
+            self.current_time=0
+
+    def has_card(self,cards):
+        return all(card in self.cards for card in cards)
+
 
     def add_card(self, card):
         self.cards.add(card)
@@ -53,48 +90,45 @@ class Board():
             self.remove_card(card)
 
     def is_set(self, card1 ,card2 ,card3):
+        print("check for set:")
         if card1 not in self.cards or \
             card2 not in self.cards or \
             card3 not in self.cards:
             return False
+        print(card1)
+        print(card2)
+        print(card3)
         # a set does exist if each attribut is completely different or the same across all cards
-        color_val = (card1.color, card2.color, card3.color) == 3 or \
+        color_val = ((card1.color+card2.color+ card3.color) == 3) or \
                     (card1.color == card2.color ==card3.color)
 
-        quantity_val = (card1.quantity, card2.quantity, card3.quantity) == 3 or \
+        quantity_val = ((card1.quantity+ card2.quantity+ card3.quantity) == 3) or \
                        (card1.quantity == card2.quantity and card2.quantity == card3.quantity)
 
-        filling_val = (card1.filling, card2.filling, card3.filling) == 3 or \
+        filling_val = ((card1.filling+ card2.filling+ card3.filling) == 3) or \
                       (card1.filling == card2.filling and card2.filling == card3.filling)
 
-        shape_val = (card1.shape, card2.shape, card3.shape) == 3 or \
+        shape_val = ((card1.shape+ card2.shape+ card3.shape) == 3) or \
                     (card1.shape == card2.shape and card2.shape == card3.shape)
         # if all attributes are valid, then a set exists
+        if(color_val and quantity_val and filling_val and shape_val):
+            print("set found")
         return color_val and quantity_val and filling_val and shape_val
-    
 
-    def deduce(self, card1, card2):
-        # deduce the third card that would complete the set with card1 and card2
-        color = (3 - (card1.color + card2.color)) % 3
-        quantity = (3 - (card1.quantity + card2.quantity)) % 3
-        filling = (3 - (card1.filling + card2.filling)) % 3
-        shape = (3 - (card1.shape + card2.shape)) % 3
-        return card(color, quantity, filling, shape)
+
     
     def find_set(self):
         # find a set of three cards on the board
-        for card1, card2 in itertools.combinations(self.cards, 2):
-            card3 = self.deduce(card1, card2)
-            if card3 in self.cards:
+        for card1, card2 ,card3 in itertools.combinations(self.cards, 3):
+            if self.is_set(card1,card2,card3):
                 return (card1, card2, card3)
         return False
     
     def find_all_sets(self):
         # find all sets of three cards on the board
         sets = []
-        for card1, card2 in itertools.combinations(self.cards, 2):
-            card3 = self.deduce(card1, card2)
-            if card3 in self.cards:
+        for card1, card2, card3 in itertools.combinations(self.cards, 3):
+            if self.is_set(card1, card2, card3):
                 sets.append((card1, card2, card3))
         return sets  
     

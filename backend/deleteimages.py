@@ -17,4 +17,4 @@ def delete_matching_files(source_dir, compare_dir):
         print(f" - {f}")
 
 # Example usage:
-delete_matching_files("input2", "sort_input2")
+delete_matching_files("input5", "sort_input5")
