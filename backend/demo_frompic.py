@@ -7,7 +7,8 @@ from torchvision import models
 import torch.nn as nn
 from torchvision.transforms import v2
 import matplotlib.pyplot as plt
-
+import os
+from pathlib import Path
 
 # --- הגדרת המודל לסיווג ---
 class MultiHeadMobileNetV3(nn.Module):
@@ -135,3 +136,70 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+
+def segment_classify_and_partition(image_paths, output_dir,
+                                   yolo_model_path, classifier_model_path):
+    """
+    Segments, classifies, and saves each card from input images
+    into folders by predicted label.
+
+    Args:
+        image_paths (list[str]): List of paths to input images.
+        output_dir (str): Directory to store classified cards.
+        yolo_model_path (str): Path to the YOLOv8 weights.
+        classifier_model_path (str): Path to the MobileNetV3 classifier weights.
+    """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Load models
+    yolo_model = YOLO(yolo_model_path)
+    classifier = MultiHeadMobileNetV3().to(device)
+    classifier.load_state_dict(torch.load(classifier_model_path, map_location=device))
+    classifier.eval()
+
+    # Ensure output directory exists
+    os.makedirs(output_dir, exist_ok=True)
+
+    for img_path in image_paths:
+        try:
+            image_pil = Image.open(img_path).convert('RGB')
+        except Exception as e:
+            print(f"Error loading {img_path}: {e}")
+            continue
+        
+        image_np = np.array(image_pil)
+        image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+
+        # Run YOLO detection
+        results = yolo_model.predict(source=img_path, save=False, imgsz=640, conf=0.3)
+
+        for result_idx, result in enumerate(results):
+            if result.masks is None:
+                continue
+
+            for mask_idx, mask in enumerate(result.masks.xy):
+                mask = np.array(mask).astype(int)
+                epsilon = 0.02 * cv2.arcLength(mask, True)
+                approx = cv2.approxPolyDP(mask, epsilon, True)
+
+                if len(approx) == 4:
+                    quad = [(int(p[0][0]), int(p[0][1])) for p in approx]
+                    ordered_box = order_box_points(np.array(quad, dtype='float32'))
+                    warped = warp_card(image_bgr, ordered_box)
+                    inp = preprocess_for_model(warped).to(device)
+
+                    with torch.no_grad():
+                        preds = classifier(inp)
+
+                    label = decode_prediction(preds)  # e.g. "Red Diamond One Solid"
+                    dir_name = label.replace(" ", "_")
+                    save_dir = Path(output_dir) / dir_name
+                    save_dir.mkdir(parents=True, exist_ok=True)
+
+                    # Save card crop
+                    card_filename = f"{Path(img_path).stem}_card{result_idx}_{mask_idx}.jpg"
+                    cv2.imwrite(str(save_dir / card_filename), warped)
+
+    print(f"Segmentation and classification completed. Results saved in: {output_dir}")
