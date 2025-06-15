@@ -59,7 +59,9 @@ class AIPlayer(Player):
             scaled_delay = base_delay * self._difficulty_scale(difficulty)
 
             time.sleep(scaled_delay)  # simulate "thinking"
-
+            if not self.board.does_set_exist():
+                #TODO:
+                # to print a message asking for a drawing a new triplet2
             if self._claim_set(chosen_set):
                 self.score += 1
 
