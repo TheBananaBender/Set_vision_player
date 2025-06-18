@@ -1,7 +1,5 @@
 import itertools
 
-import models as model
-
 # Constants for card attributes
 # Each attribute has three possible values, represented as integers
 COLOR = {0: "Red", 1: "Green", 2: "Purple"}
@@ -189,44 +187,6 @@ class Game():
             return True
         return False
 
-    def start_game(self):
-        if self.Deck is None:
-            self.Deck = Deck()
-        """
-        self.Deck.shuffle()
-        # Deal 12 cards to the board
-        for _ in range(12):
-            card = self.Deck.draw_card()
-            if card:
-                self.board.add_card(card)
-        """
-        cards = model.getBoardCards()
-        for card in cards:
-            self.board.add_card(card)
-        # Notify players that the game has started
-        print("Game started! Players can now make sets.")
-
-    def found_set(self, player, card1, card2, card3):
-        if player.set_attempt(card1, card2, card3):
-            print(f"Set found by {player.name}! Score: {player.score}")
-            # Draw new cards from the deck to replace the found set
-            self.board.remove_cards([card1, card2, card3])
-            cards = model.getBoardCards()
-            Deck.delete_cards(cards)
-            for new_card in cards:
-                if new_card not in self.board.cards:  # Ensure no duplicates
-                    self.board.add_card(new_card)
-            """
-            for _ in range(3):
-           
-                new_card = self.Deck.draw_card()
-                if new_card:
-                    self.board.add_card(new_card)
-            """
-            return True
-        else:
-            print(f"Set attempt failed by {player.name}. Score: {player.score}")
-            return False
 
     def end_game(self):
         if self.Deck.is_empty() and not self.board.does_set_exist():
