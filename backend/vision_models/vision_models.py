@@ -61,8 +61,8 @@ class Pipeline():
 
                     with torch.no_grad():
                         preds = self.classifier(inp)
-                    label = decode_prediction(preds)
-                    labels.append((quad, label))
+                    color, number, shade, shape = decode_prediction(preds)
+                    labels.append((quad, color, number, shade, shape))
         return labels
 
     
@@ -136,8 +136,8 @@ def decode_prediction(preds):
     shape_map = ['Diamond', 'Squiggle', 'Oval']
     number_map = ['One', 'Two', 'Three']
     shading_map = ['Solid', 'Striped', 'Open']
-    c, s, n, sh = [torch.argmax(p, dim=1).item() for p in preds]
-    return f"{color_map[c]} {shape_map[s]} {number_map[n]} {shading_map[sh]}"
+    color, shape, number, shade = [torch.argmax(p, dim=1).item() for p in preds]
+    return color, number, shade, shape
 
 
 # --- Lazy loading of models ---
