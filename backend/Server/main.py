@@ -2,7 +2,7 @@ from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from models import FramePacket, GameControl, Settings, GameStatus
 from game_state import GameState
-from vision_agent import process_frame
+
 import asyncio
 import json
 
@@ -43,6 +43,7 @@ async def stream_frames(websocket: WebSocket):
             data = await websocket.receive_text()
             packet = FramePacket(**json.loads(data))
             if state.running:
+                ##TODO: implement the process_frame function to handle the image processing
                 response = process_frame(packet.image_base64, state.settings)
                 state.last_ai_response = response
                 await websocket.send_json({"hint": response})
