@@ -19,7 +19,7 @@ SHAPE_INV = {"Diamond": 0, "Squiggle": 1, "Oval": 2}
 
 
 
-class card():
+class Card():
     def __init__(self, color, number, shading, shape,polygon):
         if(isinstance(color,int)):
             self.color = color
@@ -68,6 +68,9 @@ class Board():
             self.cards = cards
         self.refresh_time= 5
         self.current_time=0
+
+    def get_cards():
+        return self.cards
 
     def refresh(self,curr_cards):
         self.current_time +=1

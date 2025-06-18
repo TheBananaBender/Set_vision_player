@@ -1,7 +1,6 @@
 import cv2
 import torch
 import numpy as np
-from PIL import Image
 from ultralytics import YOLO
 from torchvision import models
 import torch.nn as nn
@@ -10,6 +9,63 @@ from torchvision.transforms import v2
 # --- Internal paths to model weights ---
 CLASSIFIER_MODEL_PATH = './classification model/mobilenetv3_set_card.pth'
 YOLO_MODEL_PATH = './SET_yolo_model/best.pt'
+
+
+class Pipeline():
+
+    def __init__(self):
+        self.yolo_model, self.classifier = self.load_models()
+        self.device = next(self.classifier.parameters()).device
+        
+
+
+    def load_models(self):
+        _yolo_model = None
+        _classifier = None
+        if _yolo_model is None:
+            _yolo_model = YOLO(YOLO_MODEL_PATH)
+        if _classifier is None:
+            _classifier = MultiHeadMobileNetV3()
+            _classifier.load_state_dict(
+                torch.load(CLASSIFIER_MODEL_PATH, map_location='cuda' if torch.cuda.is_available() else 'cpu'))
+            _classifier.eval()
+            _classifier.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+        return _yolo_model, _classifier
+
+
+    # --- Main Inference Function ---
+    def detect_and_classify_from_array(self, image_bgr):
+        
+        """
+        Args:
+            image_bgr (np.ndarray): BGR image (OpenCV format).
+
+        Returns:
+            List of tuples: [(quad_points, label_string), ...]
+        """
+        results = self.yolo_model.predict(source=image_bgr, save=False, imgsz=640, conf=0.3)
+
+        labels = []
+        for result in results:
+            if result.masks is None:
+                continue
+            for mask in result.masks.xy:
+                mask = np.array(mask).astype(int)
+                epsilon = 0.02 * cv2.arcLength(mask, True)
+                approx = cv2.approxPolyDP(mask, epsilon, True)
+                if len(approx) == 4:
+                    quad = [(int(p[0][0]), int(p[0][1])) for p in approx]
+                    ordered_box = order_box_points(np.array(quad, dtype='float32'))
+                    warped = warp_card(image_bgr, ordered_box)
+                    inp = preprocess_for_model(warped).to(self.device)
+
+                    with torch.no_grad():
+                        preds = self.classifier(inp)
+                    label = decode_prediction(preds)
+                    labels.append((quad, label))
+        return labels
+
+    
 
 
 # --- Model Definition ---
@@ -85,52 +141,4 @@ def decode_prediction(preds):
 
 
 # --- Lazy loading of models ---
-_yolo_model = None
-_classifier = None
 
-
-def load_models():
-    global _yolo_model, _classifier
-    if _yolo_model is None:
-        _yolo_model = YOLO(YOLO_MODEL_PATH)
-    if _classifier is None:
-        _classifier = MultiHeadMobileNetV3()
-        _classifier.load_state_dict(
-            torch.load(CLASSIFIER_MODEL_PATH, map_location='cuda' if torch.cuda.is_available() else 'cpu'))
-        _classifier.eval()
-        _classifier.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-    return _yolo_model, _classifier
-
-
-# --- Main Inference Function ---
-def detect_and_classify_from_array(image_bgr):
-    """
-    Args:
-        image_bgr (np.ndarray): BGR image (OpenCV format).
-
-    Returns:
-        List of tuples: [(quad_points, label_string), ...]
-    """
-    yolo_model, classifier = load_models()
-    device = next(classifier.parameters()).device
-    results = yolo_model.predict(source=image_bgr, save=False, imgsz=640, conf=0.3)
-
-    labels = []
-    for result in results:
-        if result.masks is None:
-            continue
-        for mask in result.masks.xy:
-            mask = np.array(mask).astype(int)
-            epsilon = 0.02 * cv2.arcLength(mask, True)
-            approx = cv2.approxPolyDP(mask, epsilon, True)
-            if len(approx) == 4:
-                quad = [(int(p[0][0]), int(p[0][1])) for p in approx]
-                ordered_box = order_box_points(np.array(quad, dtype='float32'))
-                warped = warp_card(image_bgr, ordered_box)
-                inp = preprocess_for_model(warped).to(device)
-
-                with torch.no_grad():
-                    preds = classifier(inp)
-                label = decode_prediction(preds)
-                labels.append((quad, label))
-    return labels

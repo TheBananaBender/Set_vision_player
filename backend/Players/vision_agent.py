@@ -1,7 +1,7 @@
 import threading
 import random
 import time
-from ...backend.Game_logic.Players import Player
+from Game_logic import Player
 
 class AIPlayer(Player):
     def __init__(self, name, board, difficulty='medium'):

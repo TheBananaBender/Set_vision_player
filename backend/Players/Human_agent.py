@@ -1,5 +1,6 @@
 import time
 from collections import defaultdict
+from Game_logic import Player
 
 class HumanPlayer(Player):
     def __init__(self, name, board, score, id, get_cards_func, vanish_timeout=3.0):
