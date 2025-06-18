@@ -1,7 +1,7 @@
 import threading
 import random
 import time
-from ...backend.Game_logic.Players import Player
+from Game_logic.Players import Player
 
 class AIPlayer(Player):
     def __init__(self, name, board, difficulty='medium'):
@@ -63,7 +63,7 @@ class AIPlayer(Player):
             if not self.board.does_set_exist():
                 #TODO:
                 # to print a message asking for a drawing a new triplet2
-                print(f"[AIPlayer] No sets available after thinking for {scaled_delay:.2f} seconds.")
+                print("No valid sets avilable, waiting for new cards.")
             if self._claim_set(chosen_set):
                 self.score += 1
 
