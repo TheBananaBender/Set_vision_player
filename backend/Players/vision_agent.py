@@ -4,8 +4,8 @@ import time
 from Game_logic import Player
 
 class AIPlayer(Player):
-    def __init__(self, name, board, difficulty='medium'):
-        super().__init__(name)
+    def __init__(self, name, board, difficulty='medium',score = 0,id = 0):
+        super().__init__(name,board,score,id)
         self.board = board
         self.difficulty = difficulty
         self._set_thinking_time()

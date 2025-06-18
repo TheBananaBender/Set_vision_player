@@ -7,8 +7,8 @@ import torch.nn as nn
 from torchvision.transforms import v2
 
 # --- Internal paths to model weights ---
-CLASSIFIER_MODEL_PATH = './classification model/mobilenetv3_set_card.pth'
-YOLO_MODEL_PATH = './SET_yolo_model/best.pt'
+CLASSIFIER_MODEL_PATH = './backend/vision_models/classification model/mobilenetv3_set_card.pth'
+YOLO_MODEL_PATH = './backend/vision_models/SET_yolo_model/best.pt'
 
 
 class Pipeline():

@@ -48,7 +48,7 @@ class Card():
         return f"color: {COLOR[self.color]}, quantity: {NUMBER[self.quantity]}, fillig: {SHADING[self.filling]}, Shape: {SHAPE[self.shape]})"
 
     def __eq__(self, value):
-        if not isinstance(value, card):
+        if not isinstance(value, Card):
             return False
         return (self.color == value.color and
                 self.quantity == value.quantity and
@@ -67,7 +67,7 @@ class Board():
         self.refresh_time= 5
         self.current_time=0
 
-    def get_cards():
+    def get_cards(self):
         return self.cards
 
     def refresh(self,curr_cards):
@@ -149,7 +149,7 @@ class Player():
     def __str__(self):
         return f"Player {self.name} (ID: {self.id}, Score: {self.score})"
 
-    def set_attempt(self, card1: card, card2: card, card3 : card):
+    def set_attempt(self, card1: Card, card2: Card, card3 : Card):
 
         if self.board.is_set(card1,card2,card3):
             self.board.remove_card(card1)

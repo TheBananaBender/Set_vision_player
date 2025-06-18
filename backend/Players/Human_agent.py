@@ -3,14 +3,14 @@ from collections import defaultdict
 from Game_logic import Player
 
 class HumanPlayer(Player):
-    def __init__(self, name, board, score, id, get_cards_func, vanish_timeout=3.0):
+    def __init__(self, name, board, score, id, vanish_timeout=3.0):
         """
         Args:
             get_cards_func: Callable that returns the current list of card objects on the board.
             vanish_timeout: Time in seconds before vanished cards are counted for the human.
         """
         super().__init__(name, board, score, id)
-        self.get_cards_func = get_cards_func
+        self.get_cards_func = board.get_cards
         self.vanish_timeout = vanish_timeout
         self._last_seen_cards = set()
         self._vanished_cards_timestamps = defaultdict(lambda: None)  # card -> timestamp
