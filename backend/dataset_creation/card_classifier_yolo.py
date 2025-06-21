@@ -155,10 +155,10 @@ def segment_classify_and_save(
 
 # --- Run ---
 if __name__ == "__main__":
-    input_dir = "./input"
-    output_dir = "classified_cards"
-    yolo_weights = "C:\\Users\\galha\\Desktop\\Set_vision_player\\backend\\models\\SET_yolo_model\\best.pt"
-    classifier_weights = "C:\\Users\\galha\\Desktop\\Set_vision_player\\backend\\models\\classification model\\mobilenetv3_set_card.pth"
+    input_dir = "C:\\Users\\galha\\Documents\\gal\\לימודים\\תואר ראשון מדעי המחשב\\שנה ג\\pythonProject4\\input7"
+    output_dir = "C:\\Users\\galha\\Documents\\gal\\לימודים\\תואר ראשון מדעי המחשב\\שנה ג\\pythonProject4\\classified_cards2"
+    yolo_weights = "C:\\Users\\galha\\Desktop\\Set_vision_player\\backend\\vision_models\\SET_yolo_model\\best.pt"
+    classifier_weights = "C:\\Users\\galha\\Desktop\\Set_vision_player\\backend\\vision_models\\classification model\\mobilenetv3_set_card.pth"
 
     segment_classify_and_save(
         input_folder=input_dir,

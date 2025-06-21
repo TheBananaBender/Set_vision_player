@@ -3,10 +3,10 @@ import shutil
 import cv2
 import numpy as np
 
-input_dir = "input_failed"
-res_dir = "res_failed"
-output_input_dir = "sort_input_failed"
-output_res_dir = "sort_res_failed"
+input_dir = "input7"
+res_dir = "res7"
+output_input_dir = "sort_input7"
+output_res_dir = "sort_res7"
 
 os.makedirs(output_input_dir, exist_ok=True)
 os.makedirs(output_res_dir, exist_ok=True)
