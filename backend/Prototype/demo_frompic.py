@@ -82,8 +82,8 @@ def decode_prediction(preds):
 # --- פונקציה ראשית ---
 def main():
     image_path = "C:\\Users\\galha\\Documents\\gal\\לימודים\\תואר ראשון מדעי המחשב\\שנה ג\\pythonProject4\\input5\\photo_14_2025-06-15_12-32-06.jpg"
-    yolo_model_path = './best.pt'
-    classifier_model_path = './mobilenetv3_set_card.pth'
+    yolo_model_path = 'C:\\Users\\galha\\Desktop\\Set_vision_player\\backend\\vision_models\\SET_yolo_model\\best.pt'
+    classifier_model_path = 'C:\\Users\\galha\\Desktop\\Set_vision_player\\backend\\vision_models\classification model\\best_mobilenetv3_set_card (1).pth'
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

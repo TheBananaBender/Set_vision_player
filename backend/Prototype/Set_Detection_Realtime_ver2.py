@@ -83,10 +83,10 @@ def decode_prediction(preds):
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     classifier = MultiHeadMobileNetV3().to(device)
-    classifier.load_state_dict(torch.load("mobilenetv3_set_card.pth", map_location=device))
+    classifier.load_state_dict(torch.load('C:\\Users\\galha\\Desktop\\Set_vision_player\\backend\\vision_models\classification model\\best_mobilenetv3_set_card (3).pth', map_location=device))
     classifier.eval()
 
-    detector = YOLO("./best.pt")
+    detector = YOLO("C:\\Users\\galha\\Desktop\\Set_vision_player\\backend\\vision_models\\SET_yolo_model\\best.pt")
 
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
