@@ -54,9 +54,9 @@ class Card():
                 self.quantity == value.quantity and
                 self.filling == value.filling and
                 self.shape == value.shape)
-    def __repr__(self):
-        return f"Card(color={self.color}, quantity={self.quantity}, filling={self.filling}, shape={self.shape})"
 
+    def __hash__(self):
+        return (((self.color * 3 + self.quantity) * 3 + self.filling) * 3 + self.shape)
 
 class Board():
     def __init__(self, cards=None,refresh_time=5):
