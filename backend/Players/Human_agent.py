@@ -22,42 +22,14 @@ class HumanPlayer(Player):
         Should be called regularly (e.g. each frame/tick).
         Detects card removals and updates human score if vanished long enough.
         """
-        now = time.time()
-        current_cards = set(self.get_cards_func())
-        vanished_cards = self._last_seen_cards - current_cards
 
         # Mark vanished cards with their first disappear time
-        for card in vanished_cards:
-            if card not in self._vanished_cards_timestamps or self._vanished_cards_timestamps[card] is None:
-                self._vanished_cards_timestamps[card] = now
+        discarded = self.board.discard_history
+        print(discarded)
+        if len(discarded) == 3:
+            if self.board.is_set(*tuple(discarded)):
+                self.score += 1
 
-        # Detect cards vanished long enough and claim them
-        newly_claimed = []
-        for card, t_disappear in list(self._vanished_cards_timestamps.items()):
-            if t_disappear is not None and (now - t_disappear >= self.vanish_timeout):
-                if card not in self._claimed_cards:
-                    newly_claimed.append(card)
-                    self._claimed_cards.add(card)
-                    self._vanished_cards_timestamps[card] = None  # Reset
-
-        # If a full set vanished, count it
-        if len(newly_claimed) >= 3:
-            # Heuristic: Claim sets in batches of 3
-            while len(newly_claimed) >= 3:
-                c1, c2, c3 = newly_claimed[:3]
-                if self.board.is_set(c1, c2, c3):
-                    self.score += 1
-                    self.board.remove_card(c1)
-                    self.board.remove_card(c2)
-                    self.board.remove_card(c3)
-                    print(f"[HumanPlayer] Set claimed: {c1}, {c2}, {c3}")
-                    newly_claimed = newly_claimed[3:]
-                else:
-                    # Not a valid set, skip ahead (you can also penalize or store for review)
-                    print(f"[HumanPlayer] Invalid vanished set attempt.")
-                    newly_claimed = newly_claimed[3:]
-
-        self._last_seen_cards = current_cards
 
     def reset(self):
         self._last_seen_cards.clear()

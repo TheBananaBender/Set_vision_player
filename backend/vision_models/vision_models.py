@@ -7,7 +7,7 @@ import torch.nn as nn
 from torchvision.transforms import v2
 
 # --- Internal paths to model weights ---
-CLASSIFIER_MODEL_PATH = './backend/vision_models/classification model/mobilenetv3_set_card.pth'
+CLASSIFIER_MODEL_PATH = './backend/vision_models/classification model/mobilenetv3_set_card (1).pth'
 YOLO_MODEL_PATH = './backend/vision_models/SET_yolo_model/best.pt'
 
 

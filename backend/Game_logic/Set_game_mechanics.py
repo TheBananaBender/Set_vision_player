@@ -1,5 +1,6 @@
 import itertools
-
+from collections import deque , Counter
+import time 
 # Constants for card attributes
 # Each attribute has three possible values, represented as integers
 COLOR = {0: "Red", 1: "Green", 2: "Purple"}
@@ -59,23 +60,68 @@ class Card():
         return (((self.color * 3 + self.quantity) * 3 + self.filling) * 3 + self.shape)
 
 class Board():
-    def __init__(self, cards=None,refresh_time=5):
+    def __init__(self, cards=None, confidence_time=5,refresh_interval =5):
         if cards is None:
             self.cards = set()
         else:
             self.cards = cards
-        self.refresh_time= 5
-        self.current_time=0
-        self.lately_not_seen = {}
+
+        #
+        self.confidence_time = confidence_time
+        self.refresh_interval = refresh_interval
+
+        # handling cards over time
+        self.counter = Counter()
+        self.window = deque(maxlen=confidence_time)
+
+        # Track discards with timestamps
+        self.discard_history = deque()  # elements: (timestamp, card)
+        self.recently_discard = set()
+
+        self.contest_condition = False
+
+
 
     def get_cards(self):
         return self.cards
 
-    def refresh(self,curr_cards,):
-        pass
+    def refresh(self, curr_cards):
+        """
+        Refresh the board with new cards, tracking frequency and recent discards.
+        """
+        # Step 1: Update sliding window and global count
+        curr_counter = Counter(curr_cards)
+        if len(self.window) == self.confidence_time:
+            oldest_counter = self.window.popleft()
+            self.counter.subtract(oldest_counter)
+
+        self.window.append(curr_counter)
+        self.counter.update(curr_counter)
+        old = self.cards
+        self.cards = {key for key, count in self.counter.items() if count >= 4}
+
+        # Step 2: Detect discarded cards and log them with timestamps
+        discarded_cards = self.cards - old
+        now = time.time()
+        for card in discarded_cards:
+            self.discard_history.append((now, card))
+
+        # Step 3: Remove old entries from discard history
+        while self.discard_history and now - self.discard_history[0][0] > 5:
+            self.discard_history.popleft()
+
+        # Step 4: update_recently_discarded set
+  
+        self.recently_discard = {card for t, card in self.discard_history}
+
+        #emptying counter if cards are zero
+        for key in list(self.counter.keys()):
+            if self.counter[key] == 0:
+                del self.counter[key]
+
         
 
-    def has_card(self,cards):
+    def has_cards(self,cards):
         return all(card in self.cards for card in cards)
 
 
@@ -96,9 +142,7 @@ class Board():
             card2 not in self.cards or \
             card3 not in self.cards:
             return False
-        print(card1)
-        print(card2)
-        print(card3)
+
         # a set does exist if each attribut is completely different or the same across all cards
         color_val = ((card1.color+card2.color+ card3.color) == 3) or \
                     (card1.color == card2.color ==card3.color)
