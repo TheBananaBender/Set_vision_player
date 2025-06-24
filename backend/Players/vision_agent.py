@@ -55,15 +55,16 @@ class AIPlayer(Player):
                 continue
 
             chosen_set = random.choice(all_sets)
+            print("AI chose a set")
             difficulty = self._compute_set_difficulty(*chosen_set)
             base_delay = random.uniform(*self.thinking_time_range)
             scaled_delay = base_delay * self._difficulty_scale(difficulty)
 
             time.sleep(scaled_delay)  # simulate "thinking"
-            if not self.board.does_set_exist():
-                #TODO:
-                # to print a message asking for a drawing a new triplet2
-                print(f"[AIPlayer] No sets available after thinking for {scaled_delay:.2f} seconds.")
+            if not self.board.has_cards(chosen_set):
+                print(f"[AIPlayer] Chosen set no longer available after {scaled_delay:.2f} seconds.")
+                continue  # skip to next loop iteration
+
             if self._claim_set(chosen_set):
                 self.score += 1
 
