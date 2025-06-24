@@ -66,16 +66,14 @@ class Board():
             self.cards = cards
         self.refresh_time= 5
         self.current_time=0
+        self.lately_not_seen = {}
 
     def get_cards(self):
         return self.cards
 
-    def refresh(self,curr_cards):
-        self.current_time +=1
-        print(self.current_time)
-        if self.current_time >= 5:
-            self.cards = curr_cards
-            self.current_time=0
+    def refresh(self,curr_cards,):
+        pass
+        
 
     def has_card(self,cards):
         return all(card in self.cards for card in cards)
@@ -90,6 +88,7 @@ class Board():
     def remove_cards(self, rmove_cards):
         for card in rmove_cards:
             self.remove_card(card)
+
 
     def is_set(self, card1 ,card2 ,card3):
         print("check for set:")
@@ -138,6 +137,10 @@ class Board():
     def does_set_exist(self):
         # check all combinations of three cards to see if a set exists
         return self.find_set()!= False
+
+
+
+
 
 
 class Player():
