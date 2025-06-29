@@ -7,8 +7,8 @@ import torch.nn as nn
 from torchvision.transforms import v2
 
 # --- Internal paths to model weights ---
-CLASSIFIER_MODEL_PATH = './backend/vision_models/classification model/mobilenetv3_set_card (1).pth'
-YOLO_MODEL_PATH = 'C:\\Users\\Roy Dahan\\Desktop\\לימודים\\Personal projects\\SET_Visual_Player\\backend\\vision_models\\SET_yolo_model\\best.pt'
+CLASSIFIER_MODEL_PATH = 'C:\\Users\\galha\\Desktop\\Set_vision_player\\backend\\vision_models\\classification model\\best_mobilenetv3_set_card (3).pth'
+YOLO_MODEL_PATH = 'C:\\Users\\galha\\Desktop\\Set_vision_player\\backend\\vision_models\\SET_yolo_model\\last.pt'
 
 from ultralytics import YOLO
 
