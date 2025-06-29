@@ -84,6 +84,25 @@ class Board():
 
     def get_cards(self):
         return self.cards
+    
+    def update(self, card_frames):
+        """
+        Updates the board with only the cards that appear in at least 2 out of 3 frames.
+
+        Args:
+            card_frames (List[Set[Card]]): 3 sets of Card objects from the last 3 frames
+        """
+        # Count card appearances across frames
+        all_cards = [card for frame in card_frames for card in frame]
+        card_counts = Counter(all_cards)
+
+        # Filter only cards that appear in 2 or more frames
+        stable_cards = {card for card, count in card_counts.items() if count >= 2}
+
+        self.cards = stable_cards
+        print(f"[Board] Updated with {len(self.cards)} stable cards from 3-frame consensus.")
+
+        
 
     def refresh(self, curr_cards):
         """
@@ -247,7 +266,7 @@ class Deck():
             for quantity in NUMBER:
                 for filling in SHADING:
                     for shape in SHAPE:
-                        self.cards.append(card(color, quantity, filling, shape))
+                        self.cards.append(Card(color, quantity, filling, shape))
 
     def shuffle(self):
         import random
