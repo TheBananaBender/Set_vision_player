@@ -96,7 +96,7 @@ class AIPlayer(Player):
                 continue
 
             print(f"[AIPlayer] Found set: {chosen_set} with difficulty {difficulty}")
-            if self._claim_set(chosen_set):
+            if self.board.pickup_set(*chosen_set):
                 print(f"[AIPlayer] {self.name} claimed a set: {chosen_set}")
                 self.score += 1
 

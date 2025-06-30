@@ -28,8 +28,11 @@ class HumanPlayer(Player):
         discarded = self.board.prev_board_cards - self.board.cards
         print(len(discarded),discarded)
         if len(discarded) == 3:
-            print("HUMAN FOUND!!!!!!!!!!!!!!!!!!")
-            if self.board.is_set(*tuple(discarded)):
+            print("HUMAN FOUND??????????????????")
+            card1, card2, card3 = list(discarded)
+            print(card1,card2,card3)
+            if self.board.pickup_set(card1, card2, card3):
+                print("HUMAN FOUND!!!!!!!!!!!!!!!!!")
                 self.score += 1
 
 

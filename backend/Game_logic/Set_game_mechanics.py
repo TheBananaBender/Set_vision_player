@@ -2,6 +2,7 @@ import itertools
 from collections import deque , Counter
 import threading
 import time 
+from typing import Iterable
 
 # Constants for card attributes
 # Each attribute has three possible values, represented as integers
@@ -18,10 +19,38 @@ SHAPE_INV = {"Diamond": 0, "Squiggle": 1, "Oval": 2}
 
 
 
+class GraveYard():
+    def __init__(self):
+        """
+        Tracks all removed sets of cards.
+        """
+        self.cards = set()
+
+    def add_cards(self, *args):
+        """
+        Add multiple cards to the graveyard.
+        """
+        for card in args:
+            self.cards.add(card)
+    
+    def dead_set(self, card1 , card2, card3):
+        """
+        Check if any card in the set already exists in the graveyard.
+        """
+        if card1 in self.cards or card2 in self.cards or card3 in self.cards:
+            return True
+        return False
+
+
 
 
 class Card():
+    """
+    Represents a single Set card, identified by four attributes: color, quantity, filling, and shape.
+    """
     def __init__(self, color, number, shading, shape,polygon):
+        # Initializes a Card object from either strings or integer codes.
+
         if(isinstance(color,int)):
             self.color = color
         else:
@@ -45,12 +74,16 @@ class Card():
         self.polygon = polygon
 
     def __str__(self):
+        # Human-readable string representation
+
         return f"color: {COLOR[self.color]}, quantity: {NUMBER[self.quantity]}, fillig: {SHADING[self.filling]}, Shape: {SHAPE[self.shape]})"
 
     def __repr__(self):
+        # Official string representation (same as __str__)
         return f"color: {COLOR[self.color]}, quantity: {NUMBER[self.quantity]}, fillig: {SHADING[self.filling]}, Shape: {SHAPE[self.shape]})"
 
     def __eq__(self, value):
+        # Equality is based on all 4 attributes
         if not isinstance(value, Card):
             return False
         return (self.color == value.color and
@@ -62,16 +95,24 @@ class Card():
         return (((self.color * 3 + self.quantity) * 3 + self.filling) * 3 + self.shape)
 
 class Board():
-    def __init__(self, cards=None, confidence_time=5,refresh_interval =5):
+    """
+    Maintains current visible cards on the Set board, with temporal filtering for stability.
+    """
+    def __init__(self, grave_yard, cards=None, confidence_time=5,refresh_interval = 5):
+
+
         if cards is None:
             self.cards = set()
         else:
             self.cards = cards
             
-        self._lock = threading.Lock()    
+        self._lock = threading.Lock() 
 
+        self.grave_yard = grave_yard   
 
+        # Number of frames used for filtering
         self.confidence_time = confidence_time
+        # Frequency for refreshing card status
         self.refresh_interval = refresh_interval
 
         # handling cards over time
@@ -82,15 +123,18 @@ class Board():
         self.prev_board_cards = set()
 
         self.contest_condition = False
-    
+        
 
 
 
 
     def get_cards(self):
+        """
+        Returns current cards on the board.
+        """
         return self.cards
     
-    def update(self, card_frames):
+    def update(self, card_frames : (list[set[Card]])):
         """
         Updates the board with only the cards that appear in at least 2 out of 3 frames.
 
@@ -146,22 +190,36 @@ class Board():
 
         
 
-    def has_cards(self,cards):
+    def has_cards(self,cards : Iterable[Card]):
+        """
+        Check if all given cards are on the board.
+        """
         return all(card in self.cards for card in cards)
 
 
-    def add_card(self, card):
+    def add_card(self, card : Card):
+        """
+        Add a card to the board.
+        """
         self.cards.add(card)
 
-    def remove_card(self, card):
+    def remove_card(self, card : Card):
+        """
+        Remove a card from the board.
+        """
         self.cards.discard(card)
     
-    def remove_cards(self, rmove_cards):
-        for card in rmove_cards:
+    def remove_cards(self, *args):
+        for card in args:
             self.remove_card(card)
 
 
-    def is_set(self, card1 ,card2 ,card3):
+    def is_set(self, card1 : Card ,card2 : Card ,card3 : Card):
+        """
+        Determine if three cards form a valid Set.
+        A valid set has each attribute either all the same or all different.
+        """
+
         # a set does exist if each attribut is completely different or the same across all cards
         color_val = ((card1.color+card2.color+ card3.color) == 3) or \
                     (card1.color == card2.color ==card3.color)
@@ -179,9 +237,35 @@ class Board():
             print("set found")
         return color_val and quantity_val and filling_val and shape_val
 
+    def pickup_set(self, card1 : Card ,card2 : Card ,card3 : Card):
 
+        with self._lock:
+            print("\n\n\n\n\n",card1,card2,card3)
+            if not self.is_set(card1,card2,card3):
+                return False
+            print("it is a set, now does it in the board?")
+            if not self.is_recently_discard(card1,card2,card3):
+                return False
+            print("its in the board, is it not in graveyard?")
+            if self.grave_yard.dead_set(card1,card2,card3):
+                return False
+            print("its not in grave yard, now remove!")  
+
+            self.remove_cards(card1,card2,card3)
+            self.grave_yard.add_cards(card1,card2,card3)
+            print("set found succesfully")
+            return True
+
+    def is_recently_discard(self,*args):
+        for card in args:
+            if not card in self.prev_board_cards:
+                return False
+        return True
     
     def find_set(self):
+        """
+        Search the board for any single valid set of three cards.
+        """
         # find a set of three cards on the board
         for card1, card2 ,card3 in itertools.combinations(self.cards, 3):
             if self.is_set(card1,card2,card3):
@@ -189,6 +273,9 @@ class Board():
         return False
     
     def find_all_sets(self):
+        """
+        Return a list of all valid sets (tuples of 3 cards) on the board.
+        """
         # find all sets of three cards on the board
         sets = []
         for card1, card2, card3 in itertools.combinations(self.cards, 3):
@@ -198,6 +285,9 @@ class Board():
     
 
     def does_set_exist(self):
+        """
+        Check if at least one valid set exists on the board.
+        """
         # check all combinations of three cards to see if a set exists
         return self.find_set()!= False
 
@@ -207,6 +297,9 @@ class Board():
 
 
 class Player():
+    """
+    Represents a player in the game. Prototype class for "ai-vision-agent" and "human player"
+    """
     def __init__(self, name, board, score, id):
         self.name = name
         self.board = board
@@ -216,6 +309,13 @@ class Player():
         return f"Player {self.name} (ID: {self.id}, Score: {self.score})"
 
     def set_attempt(self, card1: Card, card2: Card, card3 : Card):
+        """
+        Attempt to declare a Set. If correct, increase score and remove cards.
+        If incorrect, decrease score.
+
+        Returns:
+            bool: True if valid Set, False otherwise
+        """
 
         if self.board.is_set(card1,card2,card3):
             self.board.remove_card(card1)
@@ -229,61 +329,43 @@ class Player():
 
 
 class Game():
-    def __init__(self, players=None, board=None,Deck = None):
+    """
+    Represents the full game logic including players, board, and graveyard.
+    """
+    def __init__(self, players=None, board=None, graveyard = None):
         if players is None:
             self.players = []
         else:
             self.players = players
+        if graveyard is None:
+            self.grave_yard = GraveYard()
+        else:
+            self.grave_yard = GraveYard()
+
         if board is None:
-            self.board = Board()
+            self.board = Board(grave_yard = self.grave_yard)
         else:
             self.board = board
-        if Deck is None:
-            self.Deck = None
-        else:
-            self.Deck = Deck
+            self.board.grave_yard = self.grave_yard
 
 
     def add_player(self, player):
+        """
+        Add a player to the game.
+        """
         self.players.append(player)
 
     def remove_player(self, player):
+        """
+        Remove a player from the game.
+
+        Returns:
+            bool: True if removed, False if player not found.
+        """
         if player in self.players:
             self.players.remove(player)
             return True
         return False
-
-
-    def end_game(self):
-        if self.Deck.is_empty() and not self.board.does_set_exist():
-            print("Game over! No more sets can be found.")
-
-
-class Deck():
-    def __init__(self):
-        self.cards = []
-        for color in COLOR:
-            for quantity in NUMBER:
-                for filling in SHADING:
-                    for shape in SHAPE:
-                        self.cards.append(Card(color, quantity, filling, shape))
-
-    def shuffle(self):
-        import random
-        random.shuffle(self.cards)
-
-    def draw_card(self):
-        if self.cards:
-            return self.cards.pop()
-        return None
     
-    def delete_card(self, card):
-        if card in self.cards:
-            self.cards.remove(card)
-            return True
-        return False
-    
-    delete_cards = lambda self, cards: [self.delete_card(card) for card in cards if card in self.cards]
 
-    is_empty = lambda self: len(self.cards) == 0
 

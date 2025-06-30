@@ -5,10 +5,10 @@ from ultralytics import YOLO
 from torchvision import models
 import torch.nn as nn
 from torchvision.transforms import v2
-
+import timm
 
 # --- Internal paths to model weights ---
-CLASSIFIER_MODEL_PATH = './backend/vision_models/SET_yolo_model/best_mobilenetv3_set_card_finetuned.pth'
+CLASSIFIER_MODEL_PATH = './backend/vision_models/classification model/best_mobilenetv4_set_card_finetuned.pth'
 YOLO_MODEL_PATH = './backend/vision_models/SET_yolo_model/best.pt'
 
 from ultralytics import YOLO
@@ -27,7 +27,7 @@ class Pipeline():
         if _yolo_model is None:
             _yolo_model = YOLO(YOLO_MODEL_PATH)
         if _classifier is None:
-            _classifier = MultiHeadMobileNetV3()
+            _classifier = MultiHeadMobileNetV4()
             _classifier.load_state_dict(
                 torch.load(CLASSIFIER_MODEL_PATH, map_location='cuda' if torch.cuda.is_available() else 'cpu'))
             _classifier.eval()
@@ -54,7 +54,6 @@ class Pipeline():
             for mask in result.masks.xy:
                 mask = np.array(mask).astype(int)
                 x, y, w, h = cv2.boundingRect(mask)
-                print(f"Detected mask bounding box: width={w}, height={h}")
                 epsilon = 0.02 * cv2.arcLength(mask, True)
                 approx = cv2.approxPolyDP(mask, epsilon, True)
                 if len(approx) == 4:
@@ -74,24 +73,25 @@ class Pipeline():
 
 
 # --- Model Definition ---
-class MultiHeadMobileNetV3(nn.Module):
+class MultiHeadMobileNetV4(nn.Module):
     def __init__(self):
         super().__init__()
-        base = models.mobilenet_v3_large(weights=None)
-        self.features = base.features
-        self.pool = base.avgpool
+        base = timm.create_model('mobilenetv4_conv_medium', pretrained=True, num_classes=0)
+        self.backbone = base
+        self.pool = nn.AdaptiveAvgPool2d(1)
         self.flatten = nn.Flatten()
         self.dropout = nn.Dropout(p=0.5)
-        in_features = base.classifier[0].in_features
-        self.head_color = nn.Linear(in_features, 3)
-        self.head_shape = nn.Linear(in_features, 3)
-        self.head_number = nn.Linear(in_features, 3)
+        in_features = base.num_features
+
+        self.head_color   = nn.Linear(in_features, 3)
+        self.head_shape   = nn.Linear(in_features, 3)
+        self.head_number  = nn.Linear(in_features, 3)
         self.head_shading = nn.Linear(in_features, 3)
 
     def forward(self, x):
-        x = self.features(x)
-        x = self.pool(x)
-        x = self.flatten(x)
+        x = self.backbone.forward_features(x)  # shape [B, C, H, W]
+        x = self.pool(x)                       # shape [B, C, 1, 1]
+        x = self.flatten(x)                    # shape [B, C]
         x = self.dropout(x)
         return (
             self.head_color(x),
@@ -99,7 +99,6 @@ class MultiHeadMobileNetV3(nn.Module):
             self.head_number(x),
             self.head_shading(x)
         )
-
 
 # --- Utility Functions ---
 def order_box_points(pts):

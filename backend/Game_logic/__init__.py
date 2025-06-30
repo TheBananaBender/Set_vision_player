@@ -1,2 +1,2 @@
-from .Set_game_mechanics import Board, Card, Deck, Player , Game
-__all__ = ['Board', 'Card', 'Deck', 'Player','Game']
+from .Set_game_mechanics import Board, Card, GraveYard, Player , Game
+__all__ = ['Board', 'Card', 'GraveYard', 'Player','Game']

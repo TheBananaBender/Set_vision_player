@@ -1,6 +1,7 @@
 from Players import HumanPlayer, AIPlayer
-from Game_logic import Board, Deck, Card, Game
+from Game_logic import Card, Game
 from vision_models import Pipeline , HandsSensor
+from collections import deque
 import numpy as np
 from PIL import Image, ImageDraw
 import mediapipe as mp
@@ -45,6 +46,9 @@ def get_cards(img):
     return set(Card(r[1], r[2], r[3], r[4], polygon=r[0]) for r in res)
 
 
+# Keep the last 3 hand detection results
+hand_history = deque([False] * 3, maxlen=3)
+last_confirmed_hand_state = False
 
 try:
     while True:
@@ -106,6 +110,7 @@ try:
         elapsed = time.time() - start
         sleep_time = max(0, HERZ - elapsed)
         time.sleep(sleep_time)
+    
     
 
 except KeyboardInterrupt:
