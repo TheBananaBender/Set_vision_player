@@ -124,6 +124,8 @@ class Board():
 
         self.contest_condition = False
         
+        self.last_claimed_set = set()
+        
 
 
 

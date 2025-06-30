@@ -98,6 +98,7 @@ class AIPlayer(Player):
             print(f"[AIPlayer] Found set: {chosen_set} with difficulty {difficulty}")
             if self.board.pickup_set(*chosen_set):
                 print(f"[AIPlayer] {self.name} claimed a set: {chosen_set}")
+                self.board.last_claimed_set = set(chosen_set)
                 self.score += 1
 
 

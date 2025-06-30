@@ -43,10 +43,11 @@ async def stream_frames(websocket: WebSocket):
             data = await websocket.receive_text()
             packet = FramePacket(**json.loads(data))
             if state.running:
-                ##TODO: implement the process_frame function to handle the image processing
-                response = process_frame(packet.image_base64, state.settings)
-                state.last_ai_response = response
-                await websocket.send_json({"hint": response})
+                result = state.process_frame(packet.image_base64)
+                await websocket.send_json(result or {
+                    "human_score": state.human.score,
+                    "ai_score": state.ai.score
+                })
             await asyncio.sleep(1 / 2)  # control frame rate: 2 fps
     except Exception as e:
         print("WebSocket error:", e)

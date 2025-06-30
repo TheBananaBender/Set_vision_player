@@ -7,11 +7,34 @@ from PIL import Image, ImageDraw
 import mediapipe as mp
 import cv2
 import time
+import os 
+from datetime import datetime
 
+COLOR = {0: "Red", 1: "Green", 2: "Purple"}
+NUMBER = {0: "One", 1: "Two", 2: "Three"}
+SHADING = {0: "Solid", 1: "Striped", 2: "Open"}
+SHAPE = {0: "Diamond", 1: "Squiggle", 2: "Oval"}
 
 mp_hands = mp.solutions.hands
 hands_drawer = mp_hands.Hands()
 mp_draw = mp.solutions.drawing_utils
+
+SAVE_DIR = "saved_frames"
+SAVED_CARDS_DIR = "save_cards"
+os.makedirs(SAVE_DIR, exist_ok=True)
+os.makedirs(SAVED_CARDS_DIR, exist_ok=True)
+
+
+
+def warp_card(image, box, output_size=(256, 256)):
+    dst_pts = np.array([
+        [0, 0],
+        [output_size[0] - 1, 0],
+        [output_size[0] - 1, output_size[1] - 1],
+        [0, output_size[1] - 1]
+    ], dtype="float32")
+    M = cv2.getPerspectiveTransform(np.float32(box), dst_pts)
+    return cv2.warpPerspective(image, M, output_size)
 
 # Constants
 FPS = 40
@@ -56,6 +79,52 @@ try:
         frame_num += 1
         read_cards_cnt = 0
         ret, frame = camera.read()
+
+
+
+                
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('s'):
+            # Save raw full frame
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            frame_path = os.path.join(SAVE_DIR, f"raw_frame_{timestamp}.png")
+            cv2.imwrite(frame_path, frame)
+            print(f"[INFO] Raw frame saved to: {frame_path}")
+
+            # Detect cards and save warped crops
+            detected_cards = get_cards(frame)
+
+            for card in detected_cards:
+                if not card.polygon or len(card.polygon) != 4:
+                    continue  # Skip invalid polygons
+
+                try:
+                    # Apply perspective warp for tight crop
+                    warped = warp_card(frame, card.polygon)
+
+                    # Convert attributes to strings
+                    color_str = COLOR[card.color]
+                    shape_str = SHAPE[card.shape]
+                    quantity_str = NUMBER[card.quantity]
+                    shading_str = SHADING[card.filling]
+
+                    # Create filename
+                    fname = f"{color_str}_{shape_str}_{quantity_str}_{shading_str}_{time.time_ns()}.png"
+                    save_path = os.path.join(SAVED_CARDS_DIR, fname)
+
+                    # Save cropped card
+                    cv2.imwrite(save_path, warped)
+                    print(f"[INFO] Saved card: {fname}")
+
+                except Exception as e:
+                    print(f"[ERROR] Failed to warp/save card: {e}")
+
+        if key == ord('q'):
+            break
+
+                # Save each detected card individually
+
+
 
         if not ret:
             ("Error: Could not read frame from camera.")
@@ -103,9 +172,8 @@ try:
         # Show live feed
         frame_bgr = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
         cv2.imshow("SET Card Realtime Detection", frame_bgr)
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('q'):
-            break
+
+ 
         # Enforce FPS
         elapsed = time.time() - start
         sleep_time = max(0, HERZ - elapsed)

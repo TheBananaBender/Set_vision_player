@@ -8,7 +8,7 @@ from torchvision.transforms import v2
 import timm
 
 # --- Internal paths to model weights ---
-CLASSIFIER_MODEL_PATH = './backend/vision_models/classification model/best_mobilenetv4_set_card_finetuned.pth'
+CLASSIFIER_MODEL_PATH = './backend/vision_models/classification model/best_mobilenetv4_set_card_finetuned_ver4.pth'
 YOLO_MODEL_PATH = './backend/vision_models/SET_yolo_model/best.pt'
 
 from ultralytics import YOLO
