@@ -11,14 +11,17 @@ class AIPlayer(Player):
         self._set_thinking_time()
         self._stop_event = threading.Event()
         self._thread = threading.Thread(target=self._play_loop, daemon=True)
+        self._condition = threading.Condition()
+
+        
 
     def _set_thinking_time(self):
         # Set the thinking time range based on the difficulty level
         self.thinking_time_range = {
-            'easy': (5, 10),
-            'medium': (3, 6),
-            'hard': (1, 3)
-        }.get(self.difficulty.lower(), (3, 6))
+            'easy': (60, 120),
+            'medium': (30, 60),
+            'hard': (15, 30)
+        }.get(self.difficulty.lower(), (30, 60))
 
     def _difficulty_scale(self, set_difficulty):
         # Scale the thinking time based on the difficulty of the set
@@ -43,15 +46,16 @@ class AIPlayer(Player):
         return sum
 
     def _claim_set(self, cards):
-        # Check if the set is still valid before claiming
-        if not self.board.has_cards(cards):
-            return False
-        try:
-            for card in cards:
-                self.board.remove_card(card)
-            return True
-        except Exception:
-            return False
+        with self.board._lock:
+            if not self.board.has_cards(cards):
+                return False
+            try:
+                for card in cards:
+                    self.board.remove_card(card)
+                return True
+            except Exception:
+                return False
+
     
     def _get_lowest_difficulty_set(self):
         # Find the set with the lowest difficulty
@@ -70,34 +74,32 @@ class AIPlayer(Player):
         print(f"[AIPlayer] {self.name} thread started.")
         while not self._stop_event.is_set():
             with self._condition:
-                self._condition.wait()  # Wait for external notification
+                self._condition.wait()  # Wait for external trigger
 
-                if self._stop_event.is_set():
-                    break
+            if self._stop_event.is_set():
+                break
 
-                print(f"[AIPlayer] {self.name} triggered to think.")
+            print(f"[AIPlayer] {self.name} triggered to think.")
 
-                if not self.board.does_set_exist():
-                    print(f"[AIPlayer] No set found, requesting 3 new cards.")
-                    continue
+            # Main logic, runs once per notification
+            if not self.board.does_set_exist():
+                print(f"[AIPlayer] No set found, requesting 3 new cards.")
+                continue
 
-                chosen_set, difficulty = self._get_lowest_difficulty_set()
-                if not chosen_set:
-                    print("[AIPlayer] No sets found after update.")
-                    continue
-                
-                print(f"[AIPlayer] Found set: {chosen_set} with difficulty {difficulty}")
-                delay = random.uniform(*self.thinking_time_range) * self._difficulty_scale(difficulty)
-                print(f"[AIPlayer] Thinking for {delay:.2f} seconds...")
-                time.sleep(delay)
+            chosen_set, difficulty = self._get_lowest_difficulty_set()
+            delay = random.uniform(*self.thinking_time_range) * self._difficulty_scale(difficulty)
+            print(f"[AIPlayer] Thinking for {delay:.2f} seconds...")
+            time.sleep(delay)
 
-                if not self.board.has_cards(chosen_set):
-                    print(f"[AIPlayer] Chosen set not available anymore.")
-                    continue
+            if not self.board.has_cards(chosen_set):
+                print(f"[AIPlayer] Chosen set not available anymore.")
+                continue
 
-                if self._claim_set(chosen_set):
-                    print(f"[AIPlayer] {self.name} claimed a set: {chosen_set}")
-                    self.score += 1
+            print(f"[AIPlayer] Found set: {chosen_set} with difficulty {difficulty}")
+            if self._claim_set(chosen_set):
+                print(f"[AIPlayer] {self.name} claimed a set: {chosen_set}")
+                self.score += 1
+
 
     def notify_new_board(self):
         """Trigger the AI to think about a new board"""

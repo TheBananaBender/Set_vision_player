@@ -3,17 +3,19 @@ from Game_logic import Board, Deck, Card, Game
 from vision_models import Pipeline , HandsSensor
 import numpy as np
 from PIL import Image, ImageDraw
-from collections import Counter
-import threading
+import mediapipe as mp
 import cv2
 import time
-from collections import deque
-from ultralytics import YOLO
+
+
+mp_hands = mp.solutions.hands
+hands_drawer = mp_hands.Hands()
+mp_draw = mp.solutions.drawing_utils
 
 # Constants
 FPS = 40
 HERZ = 1 / FPS
-CAMERA = 0
+CAMERA = 1
 
 
 # Camera init
@@ -30,11 +32,10 @@ game.add_player(human)
 game.add_player(ai)
 board = game.board
 pipeline = Pipeline()
-hands = HandsSensor(CAMERA)
+hands = HandsSensor()
 frame_num = 0
 update_cards = []
-update_bool = False
-
+updated_already = False
 
 # Start AI player in background
 ai.start()
@@ -55,26 +56,32 @@ try:
         if not ret:
             ("Error: Could not read frame from camera.")
             break
-
-        # Extract cards using pipeline
-        if frame_num % 5 == 0:
-            hands_detected = hands.is_hands_check(frame)
-            
-                
-        if hands.is_hands and hands.no_more_hands:
-            update_bool = True
         
-        if update_bool:
-            update_cards.append(get_cards(frame))
+        # Extract cards using pipeline
+        if frame_num % 2 == 0:
+            hands.is_hands_check(frame)
 
-            if len(update_cards == 3):
-                update_bool = False
+            if hands.is_hands:
+                update_cards = []
+                updated_already = False
+                #print("HAND ON screen")
+            #else:
+                #print("HAND OFF screen")
+
+        #print(f"{hands.is_hands}")
+        if not hands.is_hands:
+            if len(update_cards) < 3:
+                update_cards.append(get_cards(frame))
+            # If we have enough frames, process them
+            elif len(update_cards) == 3 and not updated_already:
                 board.update(update_cards)
                 ai.notify_new_board()
                 human.update()
-                last_frames = []
+                update_cards = []
+                updated_already = True
+                print(f"Updated board with new cards:{board.cards} ")
             
-
+        #print(len(update_cards))
         # Display current score
         cv2.putText(frame, f"Human: {human.score} | AI: {ai.score}", (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
@@ -83,9 +90,11 @@ try:
         pil_img = Image.fromarray(frame_rgb)
         draw = ImageDraw.Draw(pil_img)
         
-        for card in board.cards:
-            # Draw each card's polygon
-            draw.polygon(card.polygon, outline="blue", width=2)
+        
+        with board._lock:
+            for card in board.cards:
+                # Draw each card's polygon
+                draw.polygon(card.polygon, outline="blue", width=2)
             
         # Show live feed
         frame_bgr = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
@@ -93,7 +102,6 @@ try:
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             break
-        print("@@@@@@@@@CARDS@@@@@@@@@@@",board.cards)
         # Enforce FPS
         elapsed = time.time() - start
         sleep_time = max(0, HERZ - elapsed)
@@ -104,7 +112,6 @@ except KeyboardInterrupt:
     print("\nGame interrupted by user.")
 
 finally:
-    ai.stop()
     camera.release()
     cv2.destroyAllWindows()
     print("Final Score -> Human: {}, AI: {}".format(human.score, ai.score))

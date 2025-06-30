@@ -1,6 +1,8 @@
 import itertools
 from collections import deque , Counter
+import threading
 import time 
+
 # Constants for card attributes
 # Each attribute has three possible values, represented as integers
 COLOR = {0: "Red", 1: "Green", 2: "Purple"}
@@ -65,8 +67,10 @@ class Board():
             self.cards = set()
         else:
             self.cards = cards
+            
+        self._lock = threading.Lock()    
 
-        #
+
         self.confidence_time = confidence_time
         self.refresh_interval = refresh_interval
 
@@ -75,10 +79,11 @@ class Board():
         self.window = deque(maxlen=confidence_time)
 
         # Track discards with timestamps
-        self.discard_history = deque()  # elements: (timestamp, card)
-        self.recently_discard = set()
+        self.prev_board_cards = set()
 
         self.contest_condition = False
+    
+
 
 
 
@@ -92,6 +97,7 @@ class Board():
         Args:
             card_frames (List[Set[Card]]): 3 sets of Card objects from the last 3 frames
         """
+        self.prev_board_cards = self.cards
         # Count card appearances across frames
         all_cards = [card for frame in card_frames for card in frame]
         card_counts = Counter(all_cards)
@@ -156,12 +162,6 @@ class Board():
 
 
     def is_set(self, card1 ,card2 ,card3):
-        print("check for set:")
-        if card1 not in self.cards or \
-            card2 not in self.cards or \
-            card3 not in self.cards:
-            return False
-
         # a set does exist if each attribut is completely different or the same across all cards
         color_val = ((card1.color+card2.color+ card3.color) == 3) or \
                     (card1.color == card2.color ==card3.color)

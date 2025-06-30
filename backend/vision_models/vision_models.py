@@ -6,9 +6,10 @@ from torchvision import models
 import torch.nn as nn
 from torchvision.transforms import v2
 
+
 # --- Internal paths to model weights ---
-CLASSIFIER_MODEL_PATH = 'C:\\Users\\galha\\Desktop\\Set_vision_player\\backend\\vision_models\\classification model\\best_mobilenetv3_set_card (3).pth'
-YOLO_MODEL_PATH = 'C:\\Users\\galha\\Desktop\\Set_vision_player\\backend\\vision_models\\SET_yolo_model\\last.pt'
+CLASSIFIER_MODEL_PATH = './backend/vision_models/SET_yolo_model/best_mobilenetv3_set_card_finetuned.pth'
+YOLO_MODEL_PATH = './backend/vision_models/SET_yolo_model/best.pt'
 
 from ultralytics import YOLO
 
@@ -18,7 +19,6 @@ class Pipeline():
     def __init__(self):
         self.yolo_model, self.classifier = self.load_models()
         self.device = next(self.classifier.parameters()).device
-        
 
 
     def load_models(self):
@@ -45,7 +45,7 @@ class Pipeline():
         Returns:
             List of tuples: [(quad_points, label_string), ...]
         """
-        results = self.yolo_model.predict(source=image_bgr, save=False, imgsz=640, conf=0.3)
+        results = self.yolo_model.predict(source=image_bgr, save=False, imgsz=640, conf=0.3,verbose=False)
 
         labels = []
         for result in results:
@@ -53,11 +53,14 @@ class Pipeline():
                 continue
             for mask in result.masks.xy:
                 mask = np.array(mask).astype(int)
+                x, y, w, h = cv2.boundingRect(mask)
+                print(f"Detected mask bounding box: width={w}, height={h}")
                 epsilon = 0.02 * cv2.arcLength(mask, True)
                 approx = cv2.approxPolyDP(mask, epsilon, True)
                 if len(approx) == 4:
                     quad = [(int(p[0][0]), int(p[0][1])) for p in approx]
                     ordered_box = order_box_points(np.array(quad, dtype='float32'))
+                    
                     warped = warp_card(image_bgr, ordered_box)
                     inp = preprocess_for_model(warped).to(self.device)
 
