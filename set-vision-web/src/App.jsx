@@ -7,43 +7,32 @@ import './styles.css';
 
 export default function App() {
   const [gameStarted, setGameStarted] = useState(false);
-  const [hasStartedBefore, setHasStartedBefore] = useState(false); // 🔄 new flag
+  const [hasStartedBefore, setHasStartedBefore] = useState(false);
   const [status, setStatus] = useState('Waiting to start...');
-  
+  const [agentApi, setAgentApi] = useState(null); // { save, wsConnected }
 
-  // 🟢 Start Game Logic
+  // Start/Stop/Reset are now purely local (no fetch to /control)
   const handleStart = () => {
     setGameStarted(true);
-    setHasStartedBefore(true); // 🔄 flag is now true after first start
-    setStatus("Game started. Awaiting agent move...");
-    fetch('http://localhost:8000/control', {
-     method: 'POST',
-     headers: { 'Content-Type': 'application/json' },
-     body: JSON.stringify({ action: 'start' }),
-    });
+    setHasStartedBefore(true);
+    setStatus('Game started. Streaming frames to agent…');
+  };
+
+  const handleStop = () => {
+    setGameStarted(false);
+    setStatus('Game stopped.');
   };
 
   const handleReset = () => {
-  setGameStarted(false);
-  setHasStartedBefore(false);
-  setStatus("Game reset.");
-  fetch('http://localhost:8000/control', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'reset' }),
-  });
-};
-
-  // 🟥 Stop Game Logic
-  const handleStop = () => {
     setGameStarted(false);
-    setStatus("Game stopped.");
-    // Send stop command to backend
-    fetch('http://localhost:8000/control', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'stop' }),
-    });
+    setHasStartedBefore(false);
+    setStatus('Game reset.');
+  };
+
+  // Optional: wire a Save action through the WS bridge
+  const handleSave = () => {
+    agentApi?.save?.(); // sends {"type":"save"} over /ws
+    setStatus('Save requested…');
   };
 
   return (
@@ -55,19 +44,20 @@ export default function App() {
       </div>
 
       <HeaderMenu />
-      <WebcamFeed gameStarted={gameStarted} />
-      
-      <GameControls 
-      gameStarted={gameStarted}
-      hasStartedBefore={hasStartedBefore}
-      onStart={handleStart}
-      onStop={handleStop}
-      onReset={handleReset}
-/>
 
-      
+      {/* IMPORTANT: pass onBridgeReady so we can call save() from here */}
+      <WebcamFeed gameStarted={gameStarted} onBridgeReady={setAgentApi} />
 
-      
+      <GameControls
+        gameStarted={gameStarted}
+        hasStartedBefore={hasStartedBefore}
+        onStart={handleStart}
+        onStop={handleStop}
+        onReset={handleReset}
+        onSave={handleSave}         // ← add a Save button in GameControls if you want
+        wsConnected={!!agentApi?.wsConnected} // (optional) show link status
+      />
+
       <StatusPanel status={status} />
     </div>
   );

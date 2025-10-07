@@ -4,12 +4,17 @@ import numpy as np
 from ultralytics import YOLO
 from torchvision import models
 import torch.nn as nn
+from pathlib import Path
 from torchvision.transforms import v2
 import timm
+import os 
 
-# --- Internal paths to model weights ---
-CLASSIFIER_MODEL_PATH = './backend/vision_models/classification model/best_mobilenetv4_set_card_finetuned_ver4.pth'
-YOLO_MODEL_PATH = './backend/vision_models/SET_yolo_model/best.pt'
+# Base dir of THIS file, regardless of where the process was launched
+THIS_DIR = Path(__file__).resolve().parent
+
+# Point to weights relative to this module
+YOLO_MODEL_PATH = Path(os.getenv("YOLO_MODEL_PATH", THIS_DIR / "SET_yolo_model" / "best.pt"))
+CLASSIFIER_MODEL_PATH = THIS_DIR / "classification model" / "best_mobilenetv4_set_card_finetuned_ver4.pth" 
 
 from ultralytics import YOLO
 

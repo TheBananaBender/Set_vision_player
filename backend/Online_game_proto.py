@@ -39,7 +39,7 @@ def warp_card(image, box, output_size=(256, 256)):
 # Constants
 FPS = 40
 HERZ = 1 / FPS
-CAMERA = 1
+CAMERA = 0
 
 
 # Camera init
