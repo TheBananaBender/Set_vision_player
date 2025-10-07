@@ -61,6 +61,17 @@ frame_num = 0
 update_cards = []
 updated_already = False
 
+
+# Get width and height of the frames
+frame_width = int(camera.get(3))
+frame_height = int(camera.get(4))
+
+# Define the codec and create VideoWriter object
+out = cv2.VideoWriter('output.avi', 
+                      cv2.VideoWriter_fourcc(*'XVID'), 
+                      20.0,  # FPS
+                      (frame_width, frame_height))
+
 # Start AI player in background
 ai.start()
 
@@ -81,6 +92,9 @@ try:
         ret, frame = camera.read()
 
 
+        if not ret:
+            ("Error: Could not read frame from camera.")
+            break
 
                 
         key = cv2.waitKey(1) & 0xFF
@@ -119,16 +133,13 @@ try:
                 except Exception as e:
                     print(f"[ERROR] Failed to warp/save card: {e}")
 
+
         if key == ord('q'):
             break
 
                 # Save each detected card individually
 
 
-
-        if not ret:
-            ("Error: Could not read frame from camera.")
-            break
         
         # Extract cards using pipeline
         if frame_num % 2 == 0:
@@ -172,6 +183,7 @@ try:
         # Show live feed
         frame_bgr = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
         cv2.imshow("SET Card Realtime Detection", frame_bgr)
+        out.write(frame)
 
  
         # Enforce FPS

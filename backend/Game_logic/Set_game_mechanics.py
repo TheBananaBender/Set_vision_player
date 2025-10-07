@@ -245,9 +245,6 @@ class Board():
             print("\n\n\n\n\n",card1,card2,card3)
             if not self.is_set(card1,card2,card3):
                 return False
-            print("it is a set, now does it in the board?")
-            if not self.is_recently_discard(card1,card2,card3):
-                return False
             print("its in the board, is it not in graveyard?")
             if self.grave_yard.dead_set(card1,card2,card3):
                 return False
