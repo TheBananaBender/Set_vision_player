@@ -1,29 +1,23 @@
 import React, { useState } from 'react';
 import './HeaderMenu.css';
-import { FiHelpCircle, FiSettings } from "react-icons/fi"; // Feather icons
-
+import './InstructionsModal.css'; // add this
+import { FiHelpCircle, FiSettings } from "react-icons/fi";
+import InstructionsModal from './InstructionsModal';
 
 export default function HeaderMenu() {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [soundOn, setSoundOn] = useState(true); // 🔊 sound state
+  const [soundOn, setSoundOn] = useState(true);
+  const [helpOpen, setHelpOpen] = useState(false);
 
-  const toggleSound = () => {
-    setSoundOn(prev => !prev);
-    // Optional: trigger audio mute logic here
-  };
+  const toggleSound = () => setSoundOn(prev => !prev);
 
   return (
     <div className="header-menu">
       {/* ❓ Help */}
-      <div className="menu-item hoverable">
-        <button className="menu-button" aria-label='help'>
-            <FiHelpCircle size={20} />
-          </button>
-        <div className="menu-dropdown help-dropdown">
-          <h4>Game Help</h4>
-          <p>This is a SET game between you and an AI agent.</p>
-          <p>Find sets of 3 cards with matching or different features.</p>
-        </div>
+      <div className="menu-item">
+        <button className="menu-button" aria-label='Help' onClick={() => setHelpOpen(true)}>
+          <FiHelpCircle size={20} />
+        </button>
       </div>
 
       {/* ⚙️ Settings */}
@@ -52,7 +46,6 @@ export default function HeaderMenu() {
               <input type="number" defaultValue={3} min={0} max={10} />
             </label>
 
-            {/* 🎵 Mute/Unmute Toggle */}
             <label className="mute-toggle">
               <button className="mute-button" onClick={toggleSound}>
                 {soundOn ? '🔊' : '🔇'}
@@ -62,6 +55,9 @@ export default function HeaderMenu() {
           </div>
         )}
       </div>
+
+      {/* Modal */}
+      <InstructionsModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }

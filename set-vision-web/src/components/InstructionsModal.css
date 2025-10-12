@@ -1,0 +1,171 @@
+/* Backdrop */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 18, 28, 0.6);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+}
+
+/* Window */
+.modal-window {
+  width: min(820px, 92vw);
+  max-height: 88vh;
+  overflow: auto;
+  background: #0f172a;            /* slate-900-ish */
+  color: #e5e7eb;                  /* gray-200 */
+  border: 1px solid #243147;       /* slate-800 */
+  border-radius: 16px;
+  padding: 20px 22px 26px;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+}
+
+/* Close button */
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: transparent;
+  color: #a3aed0;
+  border: none;
+  cursor: pointer;
+}
+.modal-close:hover { color: #fff; }
+
+.modal-window h2 {
+  margin: 0 0 8px;
+  font-size: 1.5rem;
+}
+.modal-window h3 {
+  margin: 18px 0 8px;
+  font-size: 1.1rem;
+  color: #cbd5e1;
+}
+
+.attr-list {
+  margin: 8px 0 4px;
+  padding-left: 18px;
+}
+
+.tip {
+  margin-top: 14px;
+  background: #0b1222;
+  border: 1px dashed #334155;
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+
+/* mini cards */
+.card-row {
+  display: grid;
+  grid-template-columns: repeat(3, 140px);
+  gap: 12px;
+  margin: 10px 0 6px;
+}
+.mini-card {
+  background: #0b1222;
+  border: 1px solid #22324a;
+  border-radius: 12px;
+  width: 140px;
+  height: 95px;
+  display: grid;
+  place-items: center;
+}
+
+/* Put bullets next to the text, not far-left */
+.attr-list,
+.modal-window ol {
+  list-style-position: inside;
+  padding-left: 0;
+  margin-left: 0;
+}
+
+/* Make list items line up nicely */
+.attr-list li,
+.modal-window ol li {
+  margin: 4px 0;
+}
+
+/* Sticky header bar (keeps the X visible) */
+.modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #0f172a;        /* same as modal background */
+  padding: 6px 0 10px;
+  /* a subtle bottom border so the header stands out when scrolling */
+  border-bottom: 1px solid #243147;
+}
+
+.modal-close {
+  background: transparent;
+  color: #a3aed0;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+}
+.modal-close:hover { color: #fff; }
+
+/* Bullets next to text (not far-left) */
+.attr-list,
+.modal-window ol {
+  list-style-position: inside;
+  padding-left: 0;
+  margin-left: 0;
+}
+.attr-list li,
+.modal-window ol li {
+  margin: 4px 0;
+}
+
+/* Sticky header so X stays visible */
+.modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #0f172a;   /* same as modal */
+  padding: 6px 0 10px;
+  border-bottom: 1px solid #243147;
+}
+.modal-close {
+  background: transparent;
+  color: #a3aed0;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+}
+.modal-close:hover { color: #fff; }
+
+/* Image layout */
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 12px 0 4px;
+}
+.fig {
+  background: #0b1222;
+  border: 1px solid #22324a;
+  border-radius: 12px;
+  padding: 10px;
+}
+.fig img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  border-radius: 8px;
+}
+.fig figcaption {
+  margin-top: 6px;
+  font-size: 0.9rem;
+  color: #cbd5e1;
+}
