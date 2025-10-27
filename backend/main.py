@@ -1,6 +1,4 @@
 from __future__ import annotations
-
-import os
 import time
 import json
 from datetime import datetime
@@ -9,16 +7,15 @@ from typing import List, Dict, Any
 
 import cv2
 import numpy as np
-from PIL import Image
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect ,UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 
 # --- game modules (package-relative imports) ---
-from .Players import HumanPlayer, AIPlayer
-from .Game_logic import Card, Game
-from .vision_models import Pipeline, HandsSensor
+from Players import HumanPlayer, AIPlayer
+from Game_logic import Card, Game
+from vision_models import Pipeline, HandsSensor
 
 # ----------------- constants & dirs -----------------
 COLOR = {0: "Red", 1: "Green", 2: "Purple"}
@@ -32,8 +29,6 @@ SAVED_CARDS_DIR = BACKEND_DIR / "save_cards"
 SAVE_DIR.mkdir(parents=True, exist_ok=True)
 SAVED_CARDS_DIR.mkdir(parents=True, exist_ok=True)
 
-FPS = 40
-HERZ = 1.0 / FPS
 
 # --------------- helpers ----------------
 def warp_card(image_bgr: np.ndarray, box: List[List[float]], output_size=(256, 256)):
@@ -202,6 +197,15 @@ def control(req: ControlReq):
         info = sess.save_current_frame_and_crops()
         return {"ok": True, **info}
     return {"ok": False, "reason": "unknown_action"}
+
+@app.post("/polygon")
+async def polygon(file: UploadFile = File(...)):
+    img = await file.read()  # consume upload
+    return SessionState.process_frame(img)
+
+    
+
+
 
 # --------------- WebSocket ----------------
 @app.websocket("/ws")

@@ -2,7 +2,7 @@
 // InstructionsModal.jsx
 import React, { useEffect } from "react";
 import { FiX } from "react-icons/fi";
-
+  
 // import your pics (adjust names if different)
 import goodSetImg from "/src/assets/set/good-set.png";
 import badTripletImg from "/src/assets/set/bad-triplet.png";

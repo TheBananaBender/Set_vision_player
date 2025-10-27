@@ -106,7 +106,7 @@ def segment_classify_and_save(
         try:
             image_pil = Image.open(img_path).convert('RGB')
         except Exception as e:
-            print(f"❌ Error loading {img_path}: {e}")
+            print(f" Error loading {img_path}: {e}")
             continue
 
         image_np = np.array(image_pil)

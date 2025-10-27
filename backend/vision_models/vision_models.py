@@ -20,6 +20,10 @@ from ultralytics import YOLO
 
 
 class Pipeline():
+    """
+    The vision pipeline used to segment and detect the set cards
+    the "detect_and_classify_from_array" is the "important function"
+    """
 
     def __init__(self):
         self.yolo_model, self.classifier = self.load_models()
@@ -27,6 +31,7 @@ class Pipeline():
 
 
     def load_models(self):
+        """loads the pth and pt files (paramaters) of the models"""
         _yolo_model = None
         _classifier = None
         if _yolo_model is None:
