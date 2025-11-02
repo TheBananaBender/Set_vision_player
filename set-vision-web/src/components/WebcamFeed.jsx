@@ -53,10 +53,17 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
     }
   }, []);
 
+  // capture backend results and store for overlay
+  const handleAgentResult = useCallback((msg) => {
+    lastResultRef.current = msg;
+    onAgentResult?.(msg);
+  }, [onAgentResult]);
+
   // let parent know about API/states whenever they change
   useEffect(() => {
     onBridgeReady?.({ save, ping, wsConnected });
-  }, [onBridgeReady, save, ping, wsConnected]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wsConnected]); // Only notify when connection state actually changes
 
   // --- WS connect + frame push loop ---
   useEffect(() => {
@@ -64,28 +71,47 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
       // stop frame loop + close socket if we had one
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       sendingRef.current = false;
-      if (wsRef.current) { try { wsRef.current.close(); } catch {} wsRef.current = null; }
+      if (wsRef.current) {
+        try {
+          wsRef.current.close();
+        } catch {}
+        wsRef.current = null;
+      }
       setWsConnected(false);
+      return;
+    }
+
+    // Prevent duplicate connections
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.CONNECTING || wsRef.current.readyState === WebSocket.OPEN)) {
+      console.log('[WebcamFeed] WebSocket already exists, skipping new connection');
       return;
     }
 
     // connect WS (Vite proxy should forward '/ws' -> http://127.0.0.1:8000)
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const url = `${proto}://${window.location.host}/ws`;
+    console.log('[WebcamFeed] Connecting to WebSocket:', url);
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
     ws.onopen = () => {
+      console.log('[WebcamFeed] WebSocket connected!');
       setWsConnected(true);
       // update parent with latest wsConnected
       onBridgeReady?.({ save, ping, wsConnected: true });
     };
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      console.log('[WebcamFeed] WebSocket closed:', event.code, event.reason);
       setWsConnected(false);
       sendingRef.current = false;
       onBridgeReady?.({ save, ping, wsConnected: false });
+      // Clear the ref only if we're still in the stopped state
+      if (!gameStarted) {
+        wsRef.current = null;
+      }
     };
-    ws.onerror = () => {
+    ws.onerror = (error) => {
+      console.error('[WebcamFeed] WebSocket error:', error);
       setWsConnected(false);
       onBridgeReady?.({ save, ping, wsConnected: false });
     };
@@ -98,8 +124,8 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
         }
         // release backpressure after any server reply
         sendingRef.current = false;
-      } catch {
-        // non-JSON messages are ignored
+      } catch (e) {
+        console.warn('[WebcamFeed] Failed to parse message:', e);
       }
     };
 
@@ -149,9 +175,16 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
     return () => {
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       sendingRef.current = false;
-      try { ws.close(); } catch {}
+      // Close the WebSocket if it exists
+      if (wsRef.current) {
+        try {
+          wsRef.current.close();
+        } catch {}
+        wsRef.current = null;
+      }
     };
-  }, [gameStarted, onAgentResult, onBridgeReady, save, ping]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameStarted]); // Only depend on gameStarted to prevent reconnects
 
   // Draw polygons overlay when result updates
   useEffect(() => {
@@ -188,12 +221,6 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
     const id = setInterval(draw, 100);
     return () => clearInterval(id);
   }, []);
-
-  // capture backend results and store for overlay
-  const handleAgentResult = useCallback((msg) => {
-    lastResultRef.current = msg;
-    onAgentResult?.(msg);
-  }, [onAgentResult]);
 
   return (
     <div className="webcam-container">
