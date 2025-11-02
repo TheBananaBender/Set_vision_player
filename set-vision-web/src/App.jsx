@@ -10,6 +10,8 @@ export default function App() {
   const [hasStartedBefore, setHasStartedBefore] = useState(false);
   const [status, setStatus] = useState('Waiting to start...');
   const [agentApi, setAgentApi] = useState(null); // { save, wsConnected }
+  const [settings, setSettings] = useState({ difficulty: 'medium', delay_scale: 1.0, sound_on: true });
+  const [scores, setScores] = useState({ human: 0, ai: 0 });
 
   // Start/Stop/Reset are now purely local (no fetch to /control)
   const handleStart = () => {
@@ -35,6 +37,26 @@ export default function App() {
     setStatus('Save requested…');
   };
 
+  // settings change: send to backend only when not running
+  const handleSettingsChange = async (next) => {
+    setSettings(next);
+    if (gameStarted) return;
+    try {
+      await fetch('/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next),
+      });
+      setStatus('Settings updated');
+    } catch (e) {
+      setStatus('Failed to update settings');
+    }
+  };
+
+  const handleAgentResult = (msg) => {
+    if (msg?.scores) setScores(msg.scores);
+  };
+
   return (
     <div className="app">
       <div className="app-header">
@@ -43,10 +65,14 @@ export default function App() {
         </div>
       </div>
 
-      <HeaderMenu />
+      <HeaderMenu
+        settings={settings}
+        onSettingsChange={handleSettingsChange}
+        settingsDisabled={gameStarted}
+      />
 
       {/* IMPORTANT: pass onBridgeReady so we can call save() from here */}
-      <WebcamFeed gameStarted={gameStarted} onBridgeReady={setAgentApi} />
+      <WebcamFeed gameStarted={gameStarted} onBridgeReady={setAgentApi} onAgentResult={handleAgentResult} />
 
       <GameControls
         gameStarted={gameStarted}
@@ -54,11 +80,11 @@ export default function App() {
         onStart={handleStart}
         onStop={handleStop}
         onReset={handleReset}
-        onSave={handleSave}         // ← add a Save button in GameControls if you want
-        wsConnected={!!agentApi?.wsConnected} // (optional) show link status
+        onSave={handleSave}
+        wsConnected={!!agentApi?.wsConnected}
       />
 
-      <StatusPanel status={status} />
+      <StatusPanel status={`${status} · Scores → Human: ${scores.human} | AI: ${scores.ai}`} />
     </div>
   );
 }

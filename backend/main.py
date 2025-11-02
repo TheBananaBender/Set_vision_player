@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect ,UploadFile, File
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect ,UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 # --- game modules (package-relative imports) ---
@@ -166,7 +166,12 @@ class SessionState:
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -177,14 +182,56 @@ app.add_middleware(
 def _load_models_once():
     app.state.pipeline = Pipeline()
     app.state.last_session: SessionState | None = None
+    app.state.active_sessions: int = 0
+    # simple settings store (editable only when no active WS session)
+    app.state.settings: Dict[str, Any] = {
+        "difficulty": "medium",   # AI difficulty (easy/medium/hard)
+        "delay_scale": 1.0,        # scale AI thinking delay
+        "sound_on": True,
+    }
     print("[startup] models loaded and ready")
 
 @app.get("/health")
 def health():
     return {"ok": True, "t": time.time()}
 
-# --- optional: simple /control for dev convenience (POST {"action":"save"}) ---
+# --- settings & status ---
 from pydantic import BaseModel
+
+class SettingsReq(BaseModel):
+    difficulty: str | None = None   # "easy" | "medium" | "hard"
+    delay_scale: float | None = None
+    sound_on: bool | None = None
+
+@app.get("/status")
+def status():
+    sess = getattr(app.state, "last_session", None)
+    running = bool(sess)
+    scores = {"human": 0, "ai": 0}
+    if sess:
+        scores = {"human": sess.human.score, "ai": sess.ai.score}
+    return {
+        "running": running,
+        "active_sessions": app.state.active_sessions,
+        "settings": app.state.settings,
+        "scores": scores,
+    }
+
+@app.post("/settings")
+def update_settings(req: SettingsReq):
+    if app.state.active_sessions > 0:
+        raise HTTPException(status_code=409, detail="Cannot change settings while a game is running")
+    # update store
+    s = app.state.settings
+    if req.difficulty is not None:
+        s["difficulty"] = req.difficulty.lower()
+    if req.delay_scale is not None:
+        s["delay_scale"] = float(req.delay_scale)
+    if req.sound_on is not None:
+        s["sound_on"] = bool(req.sound_on)
+    return {"ok": True, "settings": s}
+
+# --- optional: simple /control for dev convenience (POST {"action":"save"}) ---
 class ControlReq(BaseModel):
     action: str
 
@@ -214,7 +261,18 @@ async def ws(websocket: WebSocket):
 
     # one session per socket (simple). For prod, key by a client-supplied session_id.
     sess = SessionState(app)
+    # apply current settings to AI before starting
+    try:
+        diff = str(app.state.settings.get("difficulty", "medium")).lower()
+        # reconfigure AI's thinking range via its API if available
+        if hasattr(sess.ai, "difficulty"):
+            sess.ai.difficulty = diff
+            if hasattr(sess.ai, "_set_thinking_time"):
+                sess.ai._set_thinking_time()
+    except Exception:
+        pass
     app.state.last_session = sess  # expose to /control for dev
+    app.state.active_sessions += 1
 
     try:
         while True:
@@ -261,3 +319,5 @@ async def ws(websocket: WebSocket):
         # clear only if this socket owned it
         if getattr(app.state, "last_session", None) is sess:
             app.state.last_session = None
+        if app.state.active_sessions > 0:
+            app.state.active_sessions -= 1

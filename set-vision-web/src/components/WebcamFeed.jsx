@@ -2,14 +2,16 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 
 export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }) {
   const videoRef = useRef(null);
+  const overlayRef = useRef(null);
   const streamRef = useRef(null);
 
   // WS bridge
   const wsRef = useRef(null);
-  const offscreenRef = useRef(null);
+  const offscreenRef = useRef(null); // for sending (fixed 320x320)
   const timerRef = useRef(null);
   const sendingRef = useRef(false);
   const [wsConnected, setWsConnected] = useState(false);
+  const lastResultRef = useRef(null);
 
   // --- camera on/off (unchanged behavior) ---
   useEffect(() => {
@@ -91,8 +93,8 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
       try {
         const msg = JSON.parse(ev.data);
         // pass any result up if requested
-        if (msg.type === 'result' && typeof onAgentResult === 'function') {
-          onAgentResult(msg);
+        if (msg.type === 'result') {
+          handleAgentResult(msg);
         }
         // release backpressure after any server reply
         sendingRef.current = false;
@@ -105,26 +107,28 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
       offscreenRef.current = document.createElement('canvas');
     }
 
-    // ~8 FPS loop pushing frames as binary (webp) with simple backpressure
+    // ~6-8 FPS loop pushing 320x320 frames as binary (webp) with backpressure
     timerRef.current = setInterval(async () => {
       const video = videoRef.current;
       const socket = wsRef.current;
       if (!video || !socket || socket.readyState !== WebSocket.OPEN) return;
       if (sendingRef.current) return;
 
-      const w = video.videoWidth || 0;
-      const h = video.videoHeight || 0;
-      if (!w || !h) return;
+      const vw = video.videoWidth || 0;
+      const vh = video.videoHeight || 0;
+      if (!vw || !vh) return;
 
       const canvas = offscreenRef.current;
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w;
-        canvas.height = h;
+      // sending at 320x320
+      if (canvas.width !== 320 || canvas.height !== 320) {
+        canvas.width = 320;
+        canvas.height = 320;
       }
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      ctx.drawImage(video, 0, 0, w, h);
+      // draw video scaled into 320x320
+      ctx.drawImage(video, 0, 0, 320, 320);
 
       sendingRef.current = true;
       try {
@@ -139,7 +143,7 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
       } catch {
         sendingRef.current = false;
       }
-    }, 120);
+    }, 150);
 
     // cleanup on toggle/unmount
     return () => {
@@ -148,6 +152,48 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
       try { ws.close(); } catch {}
     };
   }, [gameStarted, onAgentResult, onBridgeReady, save, ping]);
+
+  // Draw polygons overlay when result updates
+  useEffect(() => {
+    const draw = () => {
+      const result = lastResultRef.current;
+      const video = videoRef.current;
+      const canvas = overlayRef.current;
+      if (!result || !video || !canvas) return;
+      const w = video.videoWidth || 0;
+      const h = video.videoHeight || 0;
+      if (!w || !h) return;
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#00FF00';
+      const sx = w / 320;
+      const sy = h / 320;
+      (result.polygons || []).forEach((poly) => {
+        ctx.beginPath();
+        poly.forEach(([x, y], i) => {
+          const px = x * sx;
+          const py = y * sy;
+          if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+        });
+        ctx.closePath();
+        ctx.stroke();
+      });
+    };
+    const id = setInterval(draw, 100);
+    return () => clearInterval(id);
+  }, []);
+
+  // capture backend results and store for overlay
+  const handleAgentResult = useCallback((msg) => {
+    lastResultRef.current = msg;
+    onAgentResult?.(msg);
+  }, [onAgentResult]);
 
   return (
     <div className="webcam-container">
@@ -159,6 +205,7 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
           muted
           className="webcam-video"
         />
+        <canvas ref={overlayRef} className="webcam-overlay" />
         <div className="camera-overlay">
           <p>
             {!gameStarted

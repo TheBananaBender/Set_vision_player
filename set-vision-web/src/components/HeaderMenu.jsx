@@ -3,13 +3,23 @@ import './HeaderMenu.css';
 import './InstructionsModal.css'; // add this
 import { FiHelpCircle, FiSettings } from "react-icons/fi";
 import InstructionsModal from './InstructionsModal';
+import SettingsPanel from './SettingsPanel';
 
-export default function HeaderMenu() {
+export default function HeaderMenu({ settings, onSettingsChange, settingsDisabled }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [soundOn, setSoundOn] = useState(true);
+  const [soundOn, setSoundOn] = useState(settings ? !!settings.sound_on : true);
   const [helpOpen, setHelpOpen] = useState(false);
 
-  const toggleSound = () => setSoundOn(prev => !prev);
+  // when sound is toggled via settings panel, propagate using onSettingsChange
+  const toggleSound = () => {
+    setSoundOn(prev => {
+      const next = !prev;
+      if (settings && onSettingsChange) {
+        onSettingsChange({ ...settings, sound_on: next });
+      }
+      return next;
+    });
+  };
 
   return (
     <div className="header-menu">
@@ -31,21 +41,11 @@ export default function HeaderMenu() {
         </button>
         {settingsOpen && (
           <div className="menu-dropdown">
-            <h4>Settings</h4>
-            <label>
-              Agent Speed:
-              <select>
-                <option>Easy</option>
-                <option>Medium</option>
-                <option>Hard</option>
-              </select>
-            </label>
-
-            <label>
-              Delay (sec):
-              <input type="number" defaultValue={3} min={0} max={10} />
-            </label>
-
+            <SettingsPanel
+              disabled={settingsDisabled}
+              settings={settings}
+              onChange={onSettingsChange}
+            />
             <label className="mute-toggle">
               <button className="mute-button" onClick={toggleSound}>
                 {soundOn ? '🔊' : '🔇'}
