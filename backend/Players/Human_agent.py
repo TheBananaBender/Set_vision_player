@@ -20,20 +20,23 @@ class HumanPlayer(Player):
     def update(self):
         """
         Should be called regularly (e.g. each frame/tick).
-        Detects card removals and updates human score if vanished long enough.
+        Uses the board's disappearing cards queue to detect human SETs.
         """
-
-        # Mark vanished cards with their first disappear tim
-
-        discarded = self.board.prev_board_cards - self.board.cards
-        print(len(discarded),discarded)
-        if len(discarded) == 3:
-            print("HUMAN FOUND??????????????????")
-            card1, card2, card3 = list(discarded)
-            print(card1,card2,card3)
+        # Check if there's a potential human SET detected by the board
+        if self.board.last_detected_human_set is not None:
+            card1, card2, card3 = self.board.last_detected_human_set
+            print(f"[HumanPlayer] Attempting to claim SET: {card1}, {card2}, {card3}")
+            
+            # Try to claim the SET
             if self.board.pickup_set(card1, card2, card3):
-                print("HUMAN FOUND!!!!!!!!!!!!!!!!!")
+                print("[HumanPlayer] HUMAN FOUND SET! Score +1")
                 self.score += 1
+                # Clear the detected set after claiming
+                self.board.last_detected_human_set = None
+            else:
+                print("[HumanPlayer] Failed to claim SET (already claimed or invalid)")
+                # Clear it anyway to prevent repeated attempts
+                self.board.last_detected_human_set = None
 
 
     def reset(self):

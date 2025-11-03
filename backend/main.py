@@ -77,11 +77,14 @@ class SessionState:
         self.update_cards: List[set] = []
         self.updated_already = False
 
-        # optional smoothing like your original
-        self.hand_history = deque([False] * 3, maxlen=3)
+        # Improved smoothing for hand detection (larger buffer to handle flickering)
+        self.hand_history = deque([False] * 5, maxlen=5)
 
-        # last received raw BGR (for “save”)
+        # last received raw BGR (for "save")
         self._last_frame_bgr: np.ndarray | None = None
+        
+        # Track previous polygon state for incremental updates
+        self._prev_polygons: set = set()  # Set of polygon tuples for comparison
 
     def detect_cards(self, frame_bgr: np.ndarray) -> set:
         res = self.pipeline.detect_and_classify_from_array(frame_bgr)
@@ -99,9 +102,16 @@ class SessionState:
         # Every 2 frames, check hands
         if self.frame_num % 2 == 0:
             self.hands.is_hands_check(frame_bgr)
-
-        # If no hands -> accumulate 3 detections, then update board & players
-        if not self.hands.is_hands:
+        
+        # Update hand history for smoothing
+        self.hand_history.append(self.hands.is_hands)
+        
+        # Count recent hand detections (need at least 3 "no hands" to proceed with update)
+        hands_count = sum(self.hand_history)
+        no_hands_stable = hands_count <= 1  # Allow 1 false positive in last 5 frames
+        
+        # If no hands (with smoothing) -> accumulate 3 detections, then update board & players
+        if no_hands_stable:
             if len(self.update_cards) < 3:
                 self.update_cards.append(self.detect_cards(frame_bgr))
             elif len(self.update_cards) == 3 and not self.updated_already:
@@ -114,26 +124,78 @@ class SessionState:
                 self.update_cards = []
                 self.updated_already = True
         else:
-            self.update_cards = []
-            self.updated_already = False
+            # Only clear if hands detected consistently (at least 3 out of 5 frames)
+            if hands_count >= 3:
+                self.update_cards = []
+                self.updated_already = False
 
-        # Build polygons to render
-        polys: List[List[List[int]]] = []
+        # Build polygons to render and compute incremental updates
+        current_polys: List[List[List[int]]] = []
+        poly_to_card_map = {}  # Map polygon tuple to the polygon list for lookup
+        
         with self.board._lock:
             for c in self.board.cards:
                 if c.polygon:
                     # ensure ints
-                    polys.append([[int(x), int(y)] for (x, y) in c.polygon])
+                    poly_list = [[int(x), int(y)] for (x, y) in c.polygon]
+                    current_polys.append(poly_list)
+                    # Create tuple for comparison (convert to tuple of tuples for hashing)
+                    poly_tuple = tuple(tuple(p) for p in poly_list)
+                    poly_to_card_map[poly_tuple] = poly_list
 
+        # Compute incremental updates
+        current_poly_set = set(poly_to_card_map.keys())
+        
+        # Check if first frame (before updating state)
+        is_first_frame = not self._prev_polygons
+        
+        added_polys = current_poly_set - self._prev_polygons
+        removed_polys = self._prev_polygons - current_poly_set
+        
+        # Build incremental update payload
+        polys_added = [poly_to_card_map[poly_tup] for poly_tup in added_polys if poly_tup in poly_to_card_map]
+        # For removed, we need to store them in a way frontend can identify
+        # Convert removed tuples back to lists (poly_tup is tuple of tuples like ((x1,y1), (x2,y2), ...))
+        polys_removed = []
+        for poly_tup in removed_polys:
+            try:
+                # Convert tuple of tuples back to list of lists
+                poly_list = [list(p) for p in poly_tup]
+                polys_removed.append(poly_list)
+            except Exception as e:
+                print(f"[SessionState] Error converting removed polygon: {e}")
+                continue
+        
+        # Update previous state
+        self._prev_polygons = current_poly_set
+        
+        # Determine if we should send full update (first frame or major changes)
+        # First frame: send full update
+        # Major changes: more than 50% of polygons changed
+        send_full = (is_first_frame or 
+                    len(added_polys) + len(removed_polys) > max(len(current_poly_set), 1) * 0.5)
+        
         elapsed = time.time() - start
-        return {
+        
+        result = {
             "type": "result",
             "frame_num": self.frame_num,
             "hands": bool(self.hands.is_hands),
-            "polygons": polys,
             "scores": {"human": self.human.score, "ai": self.ai.score},
             "latency_ms": int(elapsed * 1000),
         }
+        
+        if send_full:
+            # Send full polygon list (first frame or major changes)
+            result["polygons"] = current_polys
+            result["update_type"] = "full"
+        else:
+            # Send incremental updates
+            result["polygons_added"] = polys_added
+            result["polygons_removed"] = polys_removed
+            result["update_type"] = "incremental"
+        
+        return result
 
     def save_current_frame_and_crops(self) -> Dict[str, Any]:
         if self._last_frame_bgr is None:

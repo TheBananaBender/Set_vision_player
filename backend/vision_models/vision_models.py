@@ -53,11 +53,14 @@ class Pipeline():
             image_bgr (np.ndarray): BGR image (OpenCV format).
 
         Returns:
-            List of tuples: [(quad_points, label_string), ...]
+            List of tuples: [(quad_points, color, number, shade, shape), ...]
         """
         results = self.yolo_model.predict(source=image_bgr, save=False, imgsz=640, conf=0.3,verbose=False)
 
-        labels = []
+        # Collect all valid quads and their warped cards first
+        quads = []
+        warped_cards = []
+        
         for result in results:
             if result.masks is None:
                 continue
@@ -71,12 +74,46 @@ class Pipeline():
                     ordered_box = order_box_points(np.array(quad, dtype='float32'))
                     
                     warped = warp_card(image_bgr, ordered_box)
-                    inp = preprocess_for_model(warped).to(self.device)
+                    quads.append(quad)
+                    warped_cards.append(warped)
 
-                    with torch.no_grad():
-                        preds = self.classifier(inp)
-                    color, number, shade, shape = decode_prediction(preds)
-                    labels.append((quad, color, number, shade, shape))
+        # Batch classification if we have cards
+        if not warped_cards:
+            return []
+
+        try:
+            # Preprocess all cards into a batch tensor
+            batch_tensor = preprocess_batch(warped_cards).to(self.device)
+            
+            # Single forward pass for all cards
+            with torch.no_grad():
+                preds_batch = self.classifier(batch_tensor)
+        except Exception as e:
+            print(f"[Pipeline] Error in batch classification: {e}")
+            import traceback
+            traceback.print_exc()
+            return []  # Return empty on error
+        
+        # Decode predictions for all cards
+        labels = []
+        # preds_batch is a tuple of 4 tensors, each of shape [B, 3]
+        # where B is batch size (number of cards)
+        for i, quad in enumerate(quads):
+            try:
+                # Extract predictions for this card - each pred is [B, 3], extract row i
+                color_pred = preds_batch[0][i:i+1]  # Keep as [1, 3] for decode_prediction
+                shape_pred = preds_batch[1][i:i+1]  # Keep as [1, 3] for decode_prediction
+                number_pred = preds_batch[2][i:i+1]  # Keep as [1, 3] for decode_prediction
+                shade_pred = preds_batch[3][i:i+1]  # Keep as [1, 3] for decode_prediction
+                
+                card_preds = (color_pred, shape_pred, number_pred, shade_pred)
+                color, number, shade, shape = decode_prediction(card_preds)
+                labels.append((quad, color, number, shade, shape))
+            except Exception as e:
+                print(f"[Pipeline] Error decoding prediction for card {i}: {e}")
+                # Skip this card if there's an error
+                continue
+        
         return labels
 
     
@@ -143,6 +180,33 @@ def preprocess_for_model(img):
     ])
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     return transform(img_rgb).unsqueeze(0)
+
+def preprocess_batch(images):
+    """
+    Preprocess a batch of images for the classifier model.
+    
+    Args:
+        images: List of numpy arrays (BGR images from OpenCV)
+    
+    Returns:
+        torch.Tensor: Batched tensor of shape [B, 3, 256, 256]
+    """
+    transform = v2.Compose([
+        v2.ToImage(),
+        v2.ToDtype(torch.float32, scale=True),
+        v2.Resize((256, 256), antialias=True),
+        v2.Normalize(mean=[0.485, 0.456, 0.406],
+                     std=[0.229, 0.224, 0.225])
+    ])
+    
+    batch_tensors = []
+    for img in images:
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        tensor = transform(img_rgb)
+        batch_tensors.append(tensor)
+    
+    # Stack into batch: [B, 3, 256, 256]
+    return torch.stack(batch_tensors, dim=0)
 
 
 def decode_prediction(preds):

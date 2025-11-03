@@ -98,6 +98,10 @@ class Board():
     """
     Maintains current visible cards on the Set board, with temporal filtering for stability.
     """
+    # Time windows for temporal tracking
+    RECENTLY_SEEN_WINDOW = 2.0  # seconds
+    DISAPPEARING_QUEUE_WINDOW = 2.0  # seconds
+    
     def __init__(self, grave_yard, cards=None, confidence_time=5,refresh_interval = 5):
 
 
@@ -126,6 +130,12 @@ class Board():
         
         self.last_claimed_set = set()
         
+        # Temporal tracking for human SET detection
+        self.recently_seen_cards = {}  # Card -> last_seen_timestamp
+        self.disappearing_cards_queue = deque()  # deque of (timestamp, Card) tuples
+        self.last_detected_human_set = None  # Store potential human SET
+        self.claimed_sets = {}  # frozenset(cards) -> timestamp to prevent duplicates
+        
 
 
 
@@ -139,11 +149,14 @@ class Board():
     def update(self, card_frames : (list[set[Card]])):
         """
         Updates the board with only the cards that appear in at least 2 out of 3 frames.
+        Also tracks disappearing cards for human SET detection.
 
         Args:
             card_frames (List[Set[Card]]): 3 sets of Card objects from the last 3 frames
         """
-        self.prev_board_cards = self.cards
+        now = time.time()
+        self.prev_board_cards = self.cards.copy()
+        
         # Count card appearances across frames
         all_cards = [card for frame in card_frames for card in frame]
         card_counts = Counter(all_cards)
@@ -151,10 +164,94 @@ class Board():
         # Filter only cards that appear in 2 or more frames
         stable_cards = {card for card, count in card_counts.items() if count >= 2}
 
+        # Update recently seen cards with current timestamp
+        for card in stable_cards:
+            self.recently_seen_cards[card] = now
+        
+        # Find disappeared cards (were on board, now gone)
+        disappeared = self.prev_board_cards - stable_cards
+        
+        # Add disappeared cards to the queue
+        for card in disappeared:
+            self.disappearing_cards_queue.append((now, card))
+            print(f"[Board] Card disappeared: {card}")
+        
+        # Clean old entries from temporal data structures
+        self._clean_temporal_data(now)
+        
+        # Check for human SET in disappearing cards
+        potential_human_set = self.check_disappearing_set()
+        if potential_human_set:
+            self.last_detected_human_set = potential_human_set
+            print(f"[Board] Potential human SET detected in disappearing cards!")
+        
         self.cards = stable_cards
         print(f"[Board] Updated with {len(self.cards)} stable cards from 3-frame consensus.")
 
+    def _clean_temporal_data(self, now):
+        """
+        Remove old entries from temporal tracking structures.
         
+        Args:
+            now: Current timestamp
+        """
+        # Clean recently_seen_cards
+        expired_cards = [card for card, timestamp in self.recently_seen_cards.items() 
+                        if now - timestamp > self.RECENTLY_SEEN_WINDOW]
+        for card in expired_cards:
+            del self.recently_seen_cards[card]
+        
+        # Clean disappearing_cards_queue
+        while self.disappearing_cards_queue:
+            timestamp, card = self.disappearing_cards_queue[0]
+            if now - timestamp > self.DISAPPEARING_QUEUE_WINDOW:
+                self.disappearing_cards_queue.popleft()
+            else:
+                break  # Queue is ordered by time, so we can stop here
+        
+        # Clean old claimed sets (older than 5 seconds)
+        expired_sets = [card_set for card_set, timestamp in self.claimed_sets.items() 
+                       if now - timestamp > 5.0]
+        for card_set in expired_sets:
+            del self.claimed_sets[card_set]
+
+    def check_disappearing_set(self):
+        """
+        Check if there's a valid SET among the recently disappeared cards.
+        Returns the SET as a tuple of 3 cards if found, None otherwise.
+        """
+        now = time.time()
+        
+        # Extract cards from the queue that are still within the time window
+        recent_disappeared = []
+        for timestamp, card in self.disappearing_cards_queue:
+            if now - timestamp <= self.DISAPPEARING_QUEUE_WINDOW:
+                recent_disappeared.append(card)
+        
+        # Need at least 3 cards to form a SET
+        if len(recent_disappeared) < 3:
+            return None
+        
+        print(f"[Board] Checking {len(recent_disappeared)} disappeared cards for SETs...")
+        
+        # Try all combinations of 3 cards
+        for card1, card2, card3 in itertools.combinations(recent_disappeared, 3):
+            if self.is_set(card1, card2, card3):
+                # Check if this SET was already claimed
+                set_key = frozenset([card1, card2, card3])
+                if set_key in self.claimed_sets:
+                    print(f"[Board] SET already claimed, skipping...")
+                    continue
+                
+                # Check if cards are in graveyard
+                if self.grave_yard.dead_set(card1, card2, card3):
+                    print(f"[Board] SET cards in graveyard, skipping...")
+                    continue
+                
+                print(f"[Board] Valid SET found in disappeared cards!")
+                return (card1, card2, card3)
+        
+        return None
 
     def refresh(self, curr_cards):
         """
@@ -252,6 +349,11 @@ class Board():
 
             self.remove_cards(card1,card2,card3)
             self.grave_yard.add_cards(card1,card2,card3)
+            
+            # Mark this SET as claimed to prevent duplicate scoring
+            set_key = frozenset([card1, card2, card3])
+            self.claimed_sets[set_key] = time.time()
+            
             print("set found succesfully")
             return True
 

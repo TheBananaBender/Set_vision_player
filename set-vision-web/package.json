@@ -9,6 +9,8 @@
     "dev:all": "concurrently -k \"npm:dev\" \"npm:dev:api\""
   },
   "dependencies": {
+    "@mediapipe/camera_utils": "^0.3.1675466862",
+    "@mediapipe/hands": "^0.4.1675469240",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-icons": "^5.5.0"

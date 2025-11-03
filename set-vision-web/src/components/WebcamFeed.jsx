@@ -12,11 +12,25 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
   const sendingRef = useRef(false);
   const [wsConnected, setWsConnected] = useState(false);
   const lastResultRef = useRef(null);
+  const currentPolygonsRef = useRef(new Set()); // Store polygons as strings for comparison
 
   // --- camera on/off (unchanged behavior) ---
   useEffect(() => {
     if (gameStarted) {
-      navigator.mediaDevices.getUserMedia({ video: true })
+      // Use camera index 1 (USB camera)
+      navigator.mediaDevices.enumerateDevices()
+        .then((devices) => {
+          const videoDevices = devices.filter(device => device.kind === 'videoinput');
+          console.log('[WebcamFeed] Available cameras:', videoDevices.map((d, i) => `${i}: ${d.label}`));
+          
+          // Use camera at index 1 (USB camera)
+          const targetCamera = videoDevices[1] || videoDevices[0]; // Fallback to first if only one exists
+          console.log('[WebcamFeed] Using camera:', targetCamera.label);
+          
+          return navigator.mediaDevices.getUserMedia({ 
+            video: { deviceId: { exact: targetCamera.deviceId } } 
+          });
+        })
         .then((stream) => {
           streamRef.current = stream;
           if (videoRef.current) videoRef.current.srcObject = stream;
@@ -53,9 +67,43 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
     }
   }, []);
 
+  // Helper function to create polygon key for comparison
+  const polygonKey = (poly) => JSON.stringify(poly);
+
   // capture backend results and store for overlay
   const handleAgentResult = useCallback((msg) => {
     lastResultRef.current = msg;
+    
+    // Handle incremental polygon updates
+    // If update_type is missing, treat as full update (backwards compatibility)
+    if (msg.update_type === 'incremental') {
+      // Remove polygons
+      if (msg.polygons_removed) {
+        msg.polygons_removed.forEach((poly) => {
+          const key = polygonKey(poly);
+          currentPolygonsRef.current.delete(key);
+        });
+      }
+      // Add polygons
+      if (msg.polygons_added) {
+        msg.polygons_added.forEach((poly) => {
+          const key = polygonKey(poly);
+          currentPolygonsRef.current.add(key);
+        });
+      }
+      // Convert back to array for rendering
+      msg.polygons = Array.from(currentPolygonsRef.current).map(key => JSON.parse(key));
+    } else {
+      // Full update - replace all polygons (or no update_type specified)
+      currentPolygonsRef.current.clear();
+      if (msg.polygons) {
+        msg.polygons.forEach((poly) => {
+          const key = polygonKey(poly);
+          currentPolygonsRef.current.add(key);
+        });
+      }
+    }
+    
     onAgentResult?.(msg);
   }, [onAgentResult]);
 
@@ -133,7 +181,8 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
       offscreenRef.current = document.createElement('canvas');
     }
 
-    // ~6-8 FPS loop pushing 320x320 frames as binary (webp) with backpressure
+    // ~6-8 FPS loop pushing frames as binary (webp) with backpressure
+    // Keep aspect ratio to avoid distortion
     timerRef.current = setInterval(async () => {
       const video = videoRef.current;
       const socket = wsRef.current;
@@ -145,16 +194,22 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
       if (!vw || !vh) return;
 
       const canvas = offscreenRef.current;
-      // sending at 320x320
-      if (canvas.width !== 320 || canvas.height !== 320) {
-        canvas.width = 320;
-        canvas.height = 320;
+      
+      // Maintain aspect ratio: scale to fit within 640x640 (better quality than 320x320)
+      const maxDim = 640;
+      const scale = Math.min(maxDim / vw, maxDim / vh);
+      const scaledW = Math.floor(vw * scale);
+      const scaledH = Math.floor(vh * scale);
+      
+      if (canvas.width !== scaledW || canvas.height !== scaledH) {
+        canvas.width = scaledW;
+        canvas.height = scaledH;
       }
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // draw video scaled into 320x320
-      ctx.drawImage(video, 0, 0, 320, 320);
+      // Draw video maintaining aspect ratio
+      ctx.drawImage(video, 0, 0, scaledW, scaledH);
 
       sendingRef.current = true;
       try {
@@ -193,26 +248,64 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
       const video = videoRef.current;
       const canvas = overlayRef.current;
       if (!result || !video || !canvas) return;
-      const w = video.videoWidth || 0;
-      const h = video.videoHeight || 0;
-      if (!w || !h) return;
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w;
-        canvas.height = h;
+      
+      // Get actual video internal dimensions (what the backend sees)
+      const vw = video.videoWidth || 0;
+      const vh = video.videoHeight || 0;
+      if (!vw || !vh) return;
+      
+      // Get the actual rendered video rectangle (accounting for object-fit)
+      const videoRect = video.getBoundingClientRect();
+      
+      // Use the actual displayed dimensions from bounding rect
+      const displayW = Math.round(videoRect.width);
+      const displayH = Math.round(videoRect.height);
+      
+      // Set canvas internal dimensions to match video
+      if (canvas.width !== displayW || canvas.height !== displayH) {
+        canvas.width = displayW;
+        canvas.height = displayH;
       }
+      
+      // Also set CSS dimensions to exactly match (override any CSS)
+      canvas.style.width = `${displayW}px`;
+      canvas.style.height = `${displayH}px`;
+      
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.lineWidth = 3;
       ctx.strokeStyle = '#00FF00';
-      const sx = w / 320;
-      const sy = h / 320;
+      
+      // Calculate scaling from sent image dimensions to display dimensions
+      const maxDim = 640;
+      const sendScale = Math.min(maxDim / vw, maxDim / vh);
+      const scaledW = Math.floor(vw * sendScale);
+      const scaledH = Math.floor(vh * sendScale);
+      
+      // Debug log (show every 30 frames to see live values)
+      if (result.frame_num % 30 === 1) {
+        console.log('[WebcamFeed] Video internal:', vw, 'x', vh, '→ Display:', displayW, 'x', displayH);
+        console.log('[WebcamFeed] Sent to backend:', scaledW, 'x', scaledH, '→ Canvas:', canvas.width, 'x', canvas.height);
+        console.log('[WebcamFeed] Scale factors: sx=', displayW / scaledW, 'sy=', displayH / scaledH);
+      }
+      
+      // Scale polygons: backend coords → sent dimensions → display dimensions
+      // Backend gives coords in terms of sent image (scaledW x scaledH)
+      // We need to map to display dimensions (displayW x displayH)
+      const sx = displayW / scaledW;
+      const sy = displayH / scaledH;
+      
       (result.polygons || []).forEach((poly) => {
         ctx.beginPath();
         poly.forEach(([x, y], i) => {
           const px = x * sx;
           const py = y * sy;
-          if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+          if (i === 0) {
+            ctx.moveTo(px, py);
+          } else {
+            ctx.lineTo(px, py);
+          }
         });
         ctx.closePath();
         ctx.stroke();
