@@ -12,6 +12,9 @@ class AIPlayer(Player):
         self._stop_event = threading.Event()
         self._thread = threading.Thread(target=self._play_loop, daemon=True)
         self._condition = threading.Condition()
+        self.status_callback = None  # Callback for status updates
+        self.claimed_set_callback = None  # Callback when AI claims a SET
+        self.hands_detected = False  # Flag to pause AI when hands are visible
 
         
 
@@ -72,6 +75,8 @@ class AIPlayer(Player):
 
     def _play_loop(self):
         print(f"[AIPlayer] {self.name} thread started.")
+        self._update_status("idle", "Waiting for cards...")
+        
         while not self._stop_event.is_set():
             with self._condition:
                 self._condition.wait()  # Wait for external trigger
@@ -84,15 +89,59 @@ class AIPlayer(Player):
             # Main logic, runs once per notification
             if not self.board.does_set_exist():
                 print(f"[AIPlayer] No set found, requesting 3 new cards.")
+                self._update_status("no_sets", "Hmm... I can't find any sets. Add more cards!")
                 continue
 
+            self._update_status("thinking", "I'm thinking... 🤔")
+            
             chosen_set, difficulty = self._get_lowest_difficulty_set()
             delay = random.uniform(*self.thinking_time_range) * self._difficulty_scale(difficulty)
             print(f"[AIPlayer] Thinking for {delay:.2f} seconds...")
-            time.sleep(delay)
+            
+            # Think in small increments to check if SET was taken
+            elapsed = 0
+            increment = 0.5  # Check every 0.5 seconds
+            while elapsed < delay and not self._stop_event.is_set():
+                time.sleep(increment)
+                elapsed += increment
+                
+                # Check if the SET we're thinking about was taken by human
+                if not self.board.has_cards(chosen_set):
+                    # Check if it's in the graveyard (taken by someone)
+                    if self.board.grave_yard.dead_set(*chosen_set):
+                        print(f"[AIPlayer] Human took my SET! Restarting thinking...")
+                        self._update_status("thinking", "Darn! You took my set! 😤")
+                        time.sleep(2)  # Show message for 2 seconds
+                        
+                        # Check if there are still SETs available
+                        if self.board.does_set_exist():
+                            print(f"[AIPlayer] Finding another SET...")
+                            self._update_status("thinking", "I'm thinking... 🤔")
+                            # Find a new SET and restart thinking
+                            chosen_set, difficulty = self._get_lowest_difficulty_set()
+                            delay = random.uniform(*self.thinking_time_range) * self._difficulty_scale(difficulty)
+                            elapsed = 0  # Reset timer
+                        else:
+                            print(f"[AIPlayer] No more SETs available after human took mine")
+                            break
+                    else:
+                        # SET disappeared but not in graveyard - just disappeared
+                        print(f"[AIPlayer] SET disappeared (not taken)")
+                        break
 
+            # Wait if hands are detected (avoid race condition)
+            while self.hands_detected and not self._stop_event.is_set():
+                print(f"[AIPlayer] Hands detected, waiting before claiming SET...")
+                self._update_status("thinking", "Waiting for human... 🖐️")
+                time.sleep(0.5)
+            
+            if self._stop_event.is_set():
+                break
+
+            # Final check before claiming
             if not self.board.has_cards(chosen_set):
                 print(f"[AIPlayer] Chosen set not available anymore.")
+                self._update_status("idle", "Oops, that SET disappeared!")
                 continue
 
             print(f"[AIPlayer] Found set: {chosen_set} with difficulty {difficulty}")
@@ -100,7 +149,32 @@ class AIPlayer(Player):
                 print(f"[AIPlayer] {self.name} claimed a set: {chosen_set}")
                 self.board.last_claimed_set = set(chosen_set)
                 self.score += 1
+                
+                # Notify about claimed SET for visual feedback
+                if self.claimed_set_callback:
+                    self.claimed_set_callback(chosen_set)
+                
+                self._update_status("found_set", "FOUND A SET! 🎉")
+                time.sleep(2)  # Show success message for 2 seconds
+                self._update_status("idle", "Looking for more SETs...")
 
+
+    def _update_status(self, state, message):
+        """Update AI status and notify via callback"""
+        if self.status_callback:
+            self.status_callback(state, message)
+
+    def set_status_callback(self, callback):
+        """Set a callback function to receive status updates"""
+        self.status_callback = callback
+    
+    def set_claimed_set_callback(self, callback):
+        """Set a callback function to receive claimed SET notifications"""
+        self.claimed_set_callback = callback
+
+    def set_hands_detected(self, hands_present):
+        """Update the hands detected flag to pause AI when human is interacting"""
+        self.hands_detected = hands_present
 
     def notify_new_board(self):
         """Trigger the AI to think about a new board"""
@@ -113,3 +187,10 @@ class AIPlayer(Player):
     def stop(self):
         self._stop_event.set()
         self._thread.join()
+    
+    def reset_score(self):
+        """
+        Reset AI score and status.
+        """
+        self.score = 0
+        self._update_status("idle", "Game reset. Waiting for cards...")

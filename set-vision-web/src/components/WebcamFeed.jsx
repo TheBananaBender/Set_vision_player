@@ -13,6 +13,7 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
   const [wsConnected, setWsConnected] = useState(false);
   const lastResultRef = useRef(null);
   const currentPolygonsRef = useRef(new Set()); // Store polygons as strings for comparison
+  const aiClaimedPolygonsRef = useRef([]); // AI claimed SET polygons (to draw in red)
 
   // --- camera on/off (unchanged behavior) ---
   useEffect(() => {
@@ -60,6 +61,16 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
     }
   }, []);
 
+  const reset = useCallback(() => {
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'reset' }));
+      // Clear AI claimed polygons on reset
+      aiClaimedPolygonsRef.current = [];
+      console.log('[WebcamFeed] Reset command sent to backend');
+    }
+  }, []);
+
   const ping = useCallback(() => {
     const ws = wsRef.current;
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -73,6 +84,11 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
   // capture backend results and store for overlay
   const handleAgentResult = useCallback((msg) => {
     lastResultRef.current = msg;
+    
+    // Store AI claimed polygons (for red highlight)
+    if (msg.ai_claimed_polygons) {
+      aiClaimedPolygonsRef.current = msg.ai_claimed_polygons;
+    }
     
     // Handle incremental polygon updates
     // If update_type is missing, treat as full update (backwards compatibility)
@@ -109,7 +125,7 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
 
   // let parent know about API/states whenever they change
   useEffect(() => {
-    onBridgeReady?.({ save, ping, wsConnected });
+    onBridgeReady?.({ save, reset, ping, wsConnected });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wsConnected]); // Only notify when connection state actually changes
 
@@ -146,13 +162,13 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
       console.log('[WebcamFeed] WebSocket connected!');
       setWsConnected(true);
       // update parent with latest wsConnected
-      onBridgeReady?.({ save, ping, wsConnected: true });
+      onBridgeReady?.({ save, reset, ping, wsConnected: true });
     };
     ws.onclose = (event) => {
       console.log('[WebcamFeed] WebSocket closed:', event.code, event.reason);
       setWsConnected(false);
       sendingRef.current = false;
-      onBridgeReady?.({ save, ping, wsConnected: false });
+      onBridgeReady?.({ save, reset, ping, wsConnected: false });
       // Clear the ref only if we're still in the stopped state
       if (!gameStarted) {
         wsRef.current = null;
@@ -161,7 +177,7 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
     ws.onerror = (error) => {
       console.error('[WebcamFeed] WebSocket error:', error);
       setWsConnected(false);
-      onBridgeReady?.({ save, ping, wsConnected: false });
+      onBridgeReady?.({ save, reset, ping, wsConnected: false });
     };
     ws.onmessage = (ev) => {
       try {
@@ -169,6 +185,8 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
         // pass any result up if requested
         if (msg.type === 'result') {
           handleAgentResult(msg);
+        } else if (msg.type === 'reset_ack') {
+          console.log('[WebcamFeed] Backend reset confirmed:', msg);
         }
         // release backpressure after any server reply
         sendingRef.current = false;
@@ -275,7 +293,6 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
       if (!ctx) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.lineWidth = 3;
-      ctx.strokeStyle = '#00FF00';
       
       // Calculate scaling from sent image dimensions to display dimensions
       const maxDim = 640;
@@ -296,7 +313,10 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
       const sx = displayW / scaledW;
       const sy = displayH / scaledH;
       
-      (result.polygons || []).forEach((poly) => {
+      // Helper function to draw a polygon
+      const drawPolygon = (poly, color, lineWidth) => {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
         ctx.beginPath();
         poly.forEach(([x, y], i) => {
           const px = x * sx;
@@ -309,6 +329,16 @@ export default function WebcamFeed({ gameStarted, onAgentResult, onBridgeReady }
         });
         ctx.closePath();
         ctx.stroke();
+      };
+      
+      // Draw regular board polygons in green
+      (result.polygons || []).forEach((poly) => {
+        drawPolygon(poly, '#00FF00', 3);
+      });
+      
+      // Draw AI claimed polygons in red (drawn on top, even if removed from board)
+      aiClaimedPolygonsRef.current.forEach((poly) => {
+        drawPolygon(poly, '#FF0000', 5);
       });
     };
     const id = setInterval(draw, 100);

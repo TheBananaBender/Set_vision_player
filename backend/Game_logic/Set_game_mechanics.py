@@ -40,6 +40,12 @@ class GraveYard():
         if card1 in self.cards or card2 in self.cards or card3 in self.cards:
             return True
         return False
+    
+    def reset(self):
+        """
+        Clear all cards from the graveyard.
+        """
+        self.cards.clear()
 
 
 
@@ -363,6 +369,25 @@ class Board():
                 return False
         return True
     
+    def reset(self):
+        """
+        Reset the board to initial state.
+        """
+        with self._lock:
+            self.cards.clear()
+            self.prev_board_cards.clear()
+            self.counter.clear()
+            self.window.clear()
+            
+            # Clear temporal tracking
+            self.recently_seen_cards.clear()
+            self.disappearing_cards_queue.clear()
+            self.claimed_sets.clear()
+            self.last_detected_human_set = None
+            self.last_claimed_set.clear()
+            
+            print("[Board] Reset complete")
+    
     def find_set(self):
         """
         Search the board for any single valid set of three cards.
@@ -427,6 +452,12 @@ class Player():
         else:
             self.score -= 1
             return False
+    
+    def reset_score(self):
+        """
+        Reset player score to zero.
+        """
+        self.score = 0
 
 
 class Game():
@@ -467,6 +498,20 @@ class Game():
             self.players.remove(player)
             return True
         return False
+    
+    def reset(self):
+        """
+        Reset the entire game to initial state.
+        """
+        # Reset board and graveyard
+        self.board.reset()
+        self.grave_yard.reset()
+        
+        # Reset all players
+        for player in self.players:
+            player.reset_score()
+        
+        print("[Game] Full game reset complete")
     
 
 

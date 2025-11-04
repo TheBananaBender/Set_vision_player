@@ -40,7 +40,17 @@ class HumanPlayer(Player):
 
 
     def reset(self):
+        """
+        Reset human player state.
+        """
         self._last_seen_cards.clear()
         self._vanished_cards_timestamps.clear()
         self._claimed_cards.clear()
         self._last_check_time = time.time()
+    
+    def reset_score(self):
+        """
+        Reset score to zero.
+        """
+        self.score = 0
+        self.reset()

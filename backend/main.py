@@ -69,6 +69,22 @@ class SessionState:
         except Exception:
             pass
 
+        # Set up AI status callback
+        def update_ai_status(state, message):
+            self.ai_state = state
+            self.ai_message = message
+            self.last_ai_state_change = time.time()
+        
+        # Set up AI claimed SET callback
+        def on_ai_claimed_set(cards):
+            """Called when AI claims a SET - store polygons for red highlight"""
+            self.ai_claimed_polygons = [card.polygon for card in cards if card.polygon]
+            self.ai_claimed_timestamp = time.time()
+            print(f"[SessionState] AI claimed SET, storing {len(self.ai_claimed_polygons)} polygons for red highlight")
+        
+        self.ai.set_status_callback(update_ai_status)
+        self.ai.set_claimed_set_callback(on_ai_claimed_set)
+
         self.board = self.game.board
         self.pipeline: Pipeline = app.state.pipeline  # reuse loaded models
         self.hands = HandsSensor()
@@ -79,6 +95,15 @@ class SessionState:
 
         # Improved smoothing for hand detection (larger buffer to handle flickering)
         self.hand_history = deque([False] * 5, maxlen=5)
+
+        # AI status tracking
+        self.ai_state = "idle"  # idle, thinking, found_set, no_sets
+        self.ai_message = "Waiting for cards..."
+        self.last_ai_state_change = time.time()
+        
+        # Track AI claimed SET polygons for visual feedback
+        self.ai_claimed_polygons = []  # List of polygons to highlight in red
+        self.ai_claimed_timestamp = None  # When the SET was claimed
 
         # last received raw BGR (for "save")
         self._last_frame_bgr: np.ndarray | None = None
@@ -109,6 +134,12 @@ class SessionState:
         # Count recent hand detections (need at least 3 "no hands" to proceed with update)
         hands_count = sum(self.hand_history)
         no_hands_stable = hands_count <= 1  # Allow 1 false positive in last 5 frames
+        
+        # Notify AI about hand detection to avoid race conditions
+        try:
+            self.ai.set_hands_detected(hands_count >= 2)  # Hands present if 2+ detections in last 5 frames
+        except Exception:
+            pass
         
         # If no hands (with smoothing) -> accumulate 3 detections, then update board & players
         if no_hands_stable:
@@ -177,12 +208,28 @@ class SessionState:
         
         elapsed = time.time() - start
         
+        # Check if AI claimed polygons should still be shown (5 seconds duration)
+        ai_claimed_polys_to_show = []
+        if self.ai_claimed_polygons and self.ai_claimed_timestamp:
+            if time.time() - self.ai_claimed_timestamp < 5.0:
+                # Convert polygons to frontend format
+                ai_claimed_polys_to_show = [[[int(x), int(y)] for (x, y) in poly] for poly in self.ai_claimed_polygons]
+            else:
+                # Clear expired claimed polygons
+                self.ai_claimed_polygons = []
+                self.ai_claimed_timestamp = None
+        
         result = {
             "type": "result",
             "frame_num": self.frame_num,
             "hands": bool(self.hands.is_hands),
             "scores": {"human": self.human.score, "ai": self.ai.score},
             "latency_ms": int(elapsed * 1000),
+            "ai_status": {
+                "state": self.ai_state,
+                "message": self.ai_message
+            },
+            "ai_claimed_polygons": ai_claimed_polys_to_show  # Polygons to draw in red
         }
         
         if send_full:
@@ -223,6 +270,36 @@ class SessionState:
                 # continue saving others
                 print(f"[ERROR] warp/save failed: {e}")
         return {"saved": True, "frame": str(frame_path), "cards": saved_files}
+    
+    def reset_game(self) -> Dict[str, Any]:
+        """
+        Reset the entire game state to initial conditions.
+        """
+        print("[SessionState] Resetting game...")
+        
+        # Reset game (board, graveyard, scores)
+        self.game.reset()
+        
+        # Reset frame tracking
+        self.frame_num = 0
+        self.update_cards = []
+        self.updated_already = False
+        self.hand_history = deque([False] * 5, maxlen=5)
+        
+        # Reset AI status
+        self.ai_state = "idle"
+        self.ai_message = "Game reset. Waiting for cards..."
+        self.last_ai_state_change = time.time()
+        
+        # Clear AI claimed polygons
+        self.ai_claimed_polygons = []
+        self.ai_claimed_timestamp = None
+        
+        # Clear polygon tracking
+        self._prev_polygons = set()
+        
+        print("[SessionState] Game reset complete")
+        return {"reset": True, "message": "Game reset successfully"}
 
 # --------------- app setup ----------------
 app = FastAPI()
@@ -364,7 +441,7 @@ async def ws(websocket: WebSocket):
                 await websocket.send_text(json.dumps(result))
 
             elif data_t:
-                # small JSON control messages (e.g., {"type":"save"})
+                # small JSON control messages (e.g., {"type":"save"}, {"type":"reset"})
                 try:
                     payload = json.loads(data_t)
                 except Exception:
@@ -373,6 +450,9 @@ async def ws(websocket: WebSocket):
                 if t == "save":
                     info = sess.save_current_frame_and_crops()
                     await websocket.send_text(json.dumps({"type": "save_ack", **info}))
+                elif t == "reset":
+                    info = sess.reset_game()
+                    await websocket.send_text(json.dumps({"type": "reset_ack", **info}))
                 elif t == "ping":
                     await websocket.send_text(json.dumps({"type": "pong", "t": time.time()}))
                 else:
