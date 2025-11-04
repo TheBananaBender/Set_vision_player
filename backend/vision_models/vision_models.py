@@ -218,5 +218,4 @@ def decode_prediction(preds):
     return color, number, shade, shape
 
 
-# --- Lazy loading of models ---
 

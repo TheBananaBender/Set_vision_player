@@ -29,10 +29,10 @@ class AIPlayer(Player):
     def _difficulty_scale(self, set_difficulty):
         # Scale the thinking time based on the difficulty of the set
         return {
-            1: 0.5,
+            1: 0.75,
             2: 1.0,
-            3: 1.5,
-            4: 2.0
+            3: 1.25,
+            4: 1.5
         }.get(set_difficulty, 1.0)
 
     def _compute_set_difficulty(self, card1, card2, card3):
