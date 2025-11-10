@@ -1,13 +1,13 @@
-SET-AI-Agent
+**SET-Visual-Player**
 
 SET-AI-Agent is a real-time, AI-powered web application that lets you play the SET card game using live camera input.
 It combines computer vision, deep learning, and web technologies to recognize cards, detect valid sets, and enable interactive gameplay directly from your browser.
 
-> **Overview**
+**Overview**
 
 The project bridges real-time visual recognition and human gameplay through a multi-component architecture:
 
-A CNN-based vision model predicts card polygons and attributes from camera frames.
+A CNN-based vision models that relies on two Convolutional Neural Networks **Yolov8n** for **Card segmentation** and **MobilenetV4** for **Card classification**
 
 A FastAPI backend handles model inference, board state management, and set validation.
 
@@ -15,11 +15,9 @@ A React frontend provides a responsive, intuitive interface for live gameplay an
 
 The result: a seamless experience that merges classical game logic with modern computer vision techniques.
 
-🧩 Key Features
+**Key Features**
 
 - Real-time hand detection using OpenCV
-
-
 
 - Intelligent board tracking with temporal confidence logic
 
@@ -32,141 +30,114 @@ The result: a seamless experience that merges classical game logic with modern c
 - Modular design for easy extension and research experimentation
 
 
-⚙️ Installation & Setup
-1. Clone the Repository
-git clone https://github.com/<your-username>/SET-AI-Agent.git
-cd SET-AI-Agent
-2. Backend Setup
+**Installation & Setup**
+
+_1. Clone the Repository_
+```
+git clone https://github.com/TheBananaBender/Set_vision_player
+cd Set_vision_player
+```
+
+_2. Backend Setup_
+```text
 cd backend
-uvicorn main:app --reload
+uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+```
 
-_This launches the FastAPI server locally on http://127.0.0.1:8000
-._
+_This launches the FastAPI server locally on http://127.0.0.1:8000._
 
-3. Frontend Setup
+_3. Frontend Setup_
 
 In a separate terminal:
 
+```text
 cd set-vision-web
 npm install
 npm run build
 npm start
-
+```
 
 Your local web interface should now be running on http://localhost:3000
  and communicating with the backend.
 
-Tech Stack
+**Tech Stack**
+
 Python's OOP for Players and Board design 
 Frontend - React, JavaScript, CSS
 Backend	FastAPI, Uvicorn
 Computer Vision	OpenCV, PyTorch
 Build Tools	npm
-🧪 Future Improvements
+
+**Future Improvements**
 
 - Improve model robustness with larger card datasets
 
-- Add player score tracking and multiplayer support
+- Improve temporal confidence logic of hands && cards
+
+- Implementing end_of_game logic when (grave_yard_count + board_cards == 81 && !board.has_set)
 
 - Deploy full system via Docker or cloud containerization
 
-- Add mobile device camera support
-
-- Authors
-
-- 🧠 SET-AI-Agent
-
-SET-AI-Agent is a real-time, AI-powered web application that lets you play the SET card game using live camera input.
-It combines computer vision, deep learning, and web technologies to recognize cards, detect valid sets, and enable interactive gameplay directly from your browser.
-
-🚀 Overview
-
-The project bridges real-time visual recognition and human gameplay through a multi-component architecture:
-
-A CNN-based vision model predicts card polygons and attributes from camera frames.
-
-A FastAPI backend handles model inference, board state management, and set validation.
-
-A React frontend provides a responsive, intuitive interface for live gameplay and visualization.
-
-The result: a seamless experience that merges classical game logic with modern computer vision techniques.
-
-🧩 Key Features
-
-🎥 Real-time card detection via OpenCV + PyTorch
-
-🧮 Intelligent board tracking with temporal confidence logic
-
-⚡ FastAPI backend serving inference and game logic endpoints
-
-🌐 React web interface for live camera streaming and user interaction
-
-🧠 Set validation engine ensuring correctness and speed
-
-🧰 Modular design for easy extension and research experimentation
-
 🏗️ Project Architecture
-SET-AI-Agent/
-├── backend/                 # FastAPI + PyTorch inference server
-│   ├── models/              # Trained CNN model and weights
-│   ├── utils/               # Image processing and board management
-│   └── main.py              # Entry point for the backend
-│
-├── set-vision-web/          # React frontend
-│   ├── src/                 # Components, hooks, and UI logic
-│   ├── public/              # Static assets
-│   └── package.json         # Frontend dependencies
-│
-└── README.md                # (this file)
 
-⚙️ Installation & Setup
-1. Clone the Repository
-git clone https://github.com/<your-username>/SET-AI-Agent.git
-cd SET-AI-Agent
+```text
+SET_Visual_Player/
+├── backend/
+│   ├── main.py
+│   ├── Online_game_proto.py        # no - website working demo
+│   ├── utils.py
+│   ├── Game_logic/
+│   │   └── Set_game_mechanics.py
+│   ├── Players/
+│   │   ├── Human_agent.py
+│   │   └── vision_agent.py
+│   └── vision_models/
+│       ├── vision_models.py
+│       ├── SET_yolo_model/
+│       │   ├── train.py
+│       │   └── best.pt
+│       └── handtest.py
+├── set-vision-web/
+│   ├── package.json
+│   ├── vite.config.js
+│   ├── dev_run_backend.py
+│   └── src/
+│       ├── App.jsx
+│       ├── main.jsx
+│       ├── styles.css
+│       ├── assets/
+│       │   └── set/
+│       └── components/
+│           ├── WebcamFeed.jsx
+│           └── ...
+```
 
-2. Backend Setup
-cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload
+**Requirements**
+
+_Backend_
+
+-Python >= 3.10
+
+-pip (latest)
+
+-optional; virtualenv or venv for isolation 
+
+-GPU optional; for CUDA builds install PyTorch with matching CUDA toolkit
+
+-Python packages: fastapi, uvicorn, opencv-python, numpy, torch, torchvision, ultralytics, timm, mediapipe
+
+_Frontend_
+
+-Node.js >= 18
+
+-npm >= 9 (bundled with Node)
+
+-Modern browser with WebRTC access for the webcam feed
 
 
-This launches the FastAPI server locally on http://127.0.0.1:8000
-.
+**Authors:**
 
-3. Frontend Setup
+- **Roy Dahan** => [TheBananaBender](https://github.com/TheBananaBender/) 
 
-In a separate terminal:
+- **Gal Salman** => [GalSal1](https://github.com/Galsal1/)
 
-cd set-vision-web
-npm install
-npm run build
-npm start
-
-
-Your local web interface should now be running on http://localhost:3000
- and communicating with the backend.
-
-🧠 Tech Stack
-Layer	Technologies
-Frontend	React, JavaScript, CSS
-Backend	FastAPI, Uvicorn
-Computer Vision	OpenCV, PyTorch
-Language	Python
-Build Tools	npm
-🧪 Future Improvements
-
-🧬 Improve model robustness with larger card datasets
-
-🎯 Add player score tracking and multiplayer support
-
-💡 Deploy full system via Docker or cloud containerization
-
-📱 Add mobile device camera support
-
-🖋️ Author
-
-[ Roy Dahan => TheBananaBender && Gal Salman => GalSal1 ] 
-  
-
-[Your Name]
-📍 Computer Science Student at TAU & TUM
