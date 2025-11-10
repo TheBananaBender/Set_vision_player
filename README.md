@@ -7,7 +7,7 @@ It combines computer vision, deep learning, and web technologies to recognize ca
 
 The project bridges real-time visual recognition and human gameplay through a multi-component architecture:
 
-A CNN-based vision models that relies on two Convolutional Neural Networks **Yolov8n** for **Card segmentation** and **MobilenetV4** for **Card classification**
+A CNN-based vision models that relies on two Convolutional Neural Networks **YOLOv11n-seg** for **Card segmentation** and **MobileNetV4** for **Card classification**.
 
 A FastAPI backend handles model inference, board state management, and set validation.
 
@@ -17,13 +17,19 @@ The result: a seamless experience that merges classical game logic with modern c
 
 **Key Features**
 
-- Real-time hand detection using OpenCV
+- Real-time hand detection using OpenCV 
 
-- Intelligent board tracking with temporal confidence logic
+- Fully-trained Augmented MobilenetV4 for card classification (4 linear heads for each attribute)
 
-- FastAPI backend serving inference and game logic endpoints
+- YOLOv11n-seg for card Segmentation using a binary mask for each pixel.
 
-- React web interface for live camera streaming and user interaction
+- smart card extraction from mask using CV2.
+
+- Intelligent board tracking with temporal confidence logic.
+
+- FastAPI backend serving inference and game logic (board and AI \ Human Player classes) using WS.
+
+- React web interface for live camera streaming and user interaction.
 
 - Set validation engine ensuring correctness and speed
 
@@ -116,23 +122,23 @@ SET_Visual_Player/
 
 _Backend_
 
--Python >= 3.10
+- Python >= 3.10
 
--pip (latest)
+- pip (latest)
 
--optional; virtualenv or venv for isolation 
+- optional; virtualenv or venv for isolation 
 
--GPU optional; for CUDA builds install PyTorch with matching CUDA toolkit
+- GPU optional; for CUDA builds install PyTorch with matching CUDA toolkit
 
--Python packages: fastapi, uvicorn, opencv-python, numpy, torch, torchvision, ultralytics, timm, mediapipe
+- Python packages: fastapi, uvicorn, opencv-python, numpy, torch, torchvision, ultralytics, timm, mediapipe
 
 _Frontend_
 
--Node.js >= 18
+- Node.js >= 18
 
--npm >= 9 (bundled with Node)
+- npm >= 9 (bundled with Node)
 
--Modern browser with WebRTC access for the webcam feed
+- Modern browser with WebRTC access for the webcam feed
 
 
 **Authors:**
