@@ -85,7 +85,7 @@ class Pipeline():
             # Preprocess all cards into a batch tensor
             batch_tensor = preprocess_batch(warped_cards).to(self.device)
             
-            # Single forward pass for all cards
+            # Single forward pass for all cards - saving GPU time (allowing cuda optimizations)
             with torch.no_grad():
                 preds_batch = self.classifier(batch_tensor)
         except Exception as e:

@@ -16,6 +16,13 @@ class HumanPlayer(Player):
         self._vanished_cards_timestamps = defaultdict(lambda: None)  # card -> timestamp
         self._claimed_cards = set()  # Avoid double-counting
         self._last_check_time = time.time()
+        self.ai_player = None  # Will be set after AI initialization
+
+    def set_ai_player(self, ai_player):
+        """
+        Provide a reference to the AI player so we can resolve contested claims.
+        """
+        self.ai_player = ai_player
 
     def update(self):
         """
@@ -28,15 +35,34 @@ class HumanPlayer(Player):
             print(f"[HumanPlayer] Attempting to claim SET: {card1}, {card2}, {card3}")
             
             # Try to claim the SET
-            if self.board.pickup_set(card1, card2, card3):
+            claimed = self.board.pickup_set(card1, card2, card3, claimed_by="human")
+            if claimed:
                 print("[HumanPlayer] HUMAN FOUND SET! Score +1")
                 self.score += 1
-                # Clear the detected set after claiming
-                self.board.last_detected_human_set = None
             else:
-                print("[HumanPlayer] Failed to claim SET (already claimed or invalid)")
-                # Clear it anyway to prevent repeated attempts
-                self.board.last_detected_human_set = None
+                # Check if AI just claimed the same set within the last 2 seconds
+                candidate_set = {card1, card2, card3}
+                ai_recently_claimed = (
+                    self.board.last_claimed_set
+                    and candidate_set == self.board.last_claimed_set
+                    and self.board.last_claimed_by == "ai"
+                    and self.board.last_claimed_time is not None
+                    and (time.time() - self.board.last_claimed_time) < 2.0
+                )
+
+                if ai_recently_claimed:
+                    print("[HumanPlayer] Human override: contested SET credited to human.")
+                    self.score += 1
+                    if self.ai_player and self.ai_player.score > 0:
+                        self.ai_player.score -= 1
+                    # Update board metadata to reflect human ownership
+                    self.board.last_claimed_by = "human"
+                    self.board.last_claimed_time = time.time()
+                else:
+                    print("[HumanPlayer] Failed to claim SET (already claimed or invalid)")
+
+            # Clear the detected set after processing
+            self.board.last_detected_human_set = None
 
 
     def reset(self):

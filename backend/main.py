@@ -63,6 +63,7 @@ class SessionState:
         self.ai = AIPlayer("AI", self.game.board, difficulty="medium", score=0, id=1)
         self.game.add_player(self.human)
         self.game.add_player(self.ai)
+        self.human.set_ai_player(self.ai)
         # If your AI has a background thread, start it:
         try:
             self.ai.start()
@@ -78,7 +79,14 @@ class SessionState:
         # Set up AI claimed SET callback
         def on_ai_claimed_set(cards):
             """Called when AI claims a SET - store polygons for red highlight"""
-            self.ai_claimed_polygons = [card.polygon for card in cards if card.polygon]
+            self.ai_claimed_card_attrs = {
+                (card.color, card.quantity, card.filling, card.shape) for card in cards
+            }
+            self.ai_claimed_polygons = [
+                [[int(x), int(y)] for (x, y) in card.polygon]
+                for card in cards
+                if card.polygon
+            ]
             self.ai_claimed_timestamp = time.time()
             print(f"[SessionState] AI claimed SET, storing {len(self.ai_claimed_polygons)} polygons for red highlight")
         
@@ -100,10 +108,15 @@ class SessionState:
         self.ai_state = "idle"  # idle, thinking, found_set, no_sets
         self.ai_message = "Waiting for cards..."
         self.last_ai_state_change = time.time()
+        self.ai_disappeared_message = "Oops, that SET disappeared!"
+        self.ai_fallback_message = "Looking for more SETs..."
+        self.ai_message_timeout = 4.5
         
         # Track AI claimed SET polygons for visual feedback
         self.ai_claimed_polygons = []  # List of polygons to highlight in red
+        self.ai_claimed_card_attrs = set()  # Set of card attribute tuples claimed by AI
         self.ai_claimed_timestamp = None  # When the SET was claimed
+        self.ai_claim_display_duration = 8.0  # Seconds to keep claimed SET highlighted
 
         # last received raw BGR (for "save")
         self._last_frame_bgr: np.ndarray | None = None
@@ -117,7 +130,7 @@ class SessionState:
 
     def process_frame(self, frame_bgr: np.ndarray) -> Dict[str, Any]:
         """
-        Mirrors your original loop logic, but on a single frame,
+        Mirrors the original loop logic, but on a single frame,
         and returns a JSON serializable dict for the browser.
         """
         self.frame_num += 1
@@ -208,15 +221,36 @@ class SessionState:
         
         elapsed = time.time() - start
         
+        # Auto-clear temporary AI messages (e.g., "Oops, that SET disappeared!")
+        if (
+            self.ai_message == self.ai_disappeared_message
+            and time.time() - self.last_ai_state_change > self.ai_message_timeout
+        ):
+            self.ai_message = self.ai_fallback_message
+            self.last_ai_state_change = time.time()
+
         # Check if AI claimed polygons should still be shown (5 seconds duration)
         ai_claimed_polys_to_show = []
-        if self.ai_claimed_polygons and self.ai_claimed_timestamp:
-            if time.time() - self.ai_claimed_timestamp < 5.0:
-                # Convert polygons to frontend format
-                ai_claimed_polys_to_show = [[[int(x), int(y)] for (x, y) in poly] for poly in self.ai_claimed_polygons]
+        if self.ai_claimed_card_attrs and self.ai_claimed_timestamp:
+            if time.time() - self.ai_claimed_timestamp < self.ai_claim_display_duration:
+                # Build polygons for current positions of claimed cards
+                updated_polys = []
+                for card in self.board.cards:
+                    card_attrs = (card.color, card.quantity, card.filling, card.shape)
+                    if card_attrs in self.ai_claimed_card_attrs and card.polygon:
+                        updated_polys.append([[int(x), int(y)] for (x, y) in card.polygon])
+
+                if updated_polys:
+                    ai_claimed_polys_to_show = updated_polys
+                    # Keep latest polygons so brief tracking loss still has recent data
+                    self.ai_claimed_polygons = updated_polys
+                else:
+                    # Fallback to last known polygons if cards temporarily undetected
+                    ai_claimed_polys_to_show = self.ai_claimed_polygons
             else:
                 # Clear expired claimed polygons
                 self.ai_claimed_polygons = []
+                self.ai_claimed_card_attrs = set()
                 self.ai_claimed_timestamp = None
         
         result = {
@@ -293,6 +327,7 @@ class SessionState:
         
         # Clear AI claimed polygons
         self.ai_claimed_polygons = []
+        self.ai_claimed_card_attrs = set()
         self.ai_claimed_timestamp = None
         
         # Clear polygon tracking
@@ -358,7 +393,7 @@ def status():
 
 @app.post("/settings")
 def update_settings(req: SettingsReq):
-    if app.state.active_sessions > 0:
+    if app.state.active_sessions > 0: # no Settings change during an active game
         raise HTTPException(status_code=409, detail="Cannot change settings while a game is running")
     # update store
     s = app.state.settings

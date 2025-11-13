@@ -145,9 +145,8 @@ class AIPlayer(Player):
                 continue
 
             print(f"[AIPlayer] Found set: {chosen_set} with difficulty {difficulty}")
-            if self.board.pickup_set(*chosen_set):
+            if self.board.pickup_set(*chosen_set, claimed_by="ai"):
                 print(f"[AIPlayer] {self.name} claimed a set: {chosen_set}")
-                self.board.last_claimed_set = set(chosen_set)
                 self.score += 1
                 
                 # Notify about claimed SET for visual feedback
@@ -182,9 +181,11 @@ class AIPlayer(Player):
             self._condition.notify()
 
     def start(self):
+        """get the AI thread moving"""
         self._thread.start()
 
     def stop(self):
+        """Stop the AI thread"""
         self._stop_event.set()
         self._thread.join()
     

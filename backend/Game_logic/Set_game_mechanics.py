@@ -82,11 +82,11 @@ class Card():
     def __str__(self):
         # Human-readable string representation
 
-        return f"color: {COLOR[self.color]}, quantity: {NUMBER[self.quantity]}, fillig: {SHADING[self.filling]}, Shape: {SHAPE[self.shape]})"
+        return f"(color: {COLOR[self.color]}, quantity: {NUMBER[self.quantity]}, fillig: {SHADING[self.filling]}, Shape: {SHAPE[self.shape]})"
 
     def __repr__(self):
         # Official string representation (same as __str__)
-        return f"color: {COLOR[self.color]}, quantity: {NUMBER[self.quantity]}, fillig: {SHADING[self.filling]}, Shape: {SHAPE[self.shape]})"
+        return f"(color: {COLOR[self.color]}, quantity: {NUMBER[self.quantity]}, fillig: {SHADING[self.filling]}, Shape: {SHAPE[self.shape]})"
 
     def __eq__(self, value):
         # Equality is based on all 4 attributes
@@ -135,6 +135,8 @@ class Board():
         self.contest_condition = False
         
         self.last_claimed_set = set()
+        self.last_claimed_by = None
+        self.last_claimed_time = None
         
         # Temporal tracking for human SET detection
         self.recently_seen_cards = {}  # Card -> last_seen_timestamp
@@ -342,7 +344,7 @@ class Board():
             print("set found")
         return color_val and quantity_val and filling_val and shape_val
 
-    def pickup_set(self, card1 : Card ,card2 : Card ,card3 : Card):
+    def pickup_set(self, card1 : Card ,card2 : Card ,card3 : Card, claimed_by: str = None):
 
         with self._lock:
             print("\n\n\n\n\n",card1,card2,card3)
@@ -359,6 +361,9 @@ class Board():
             # Mark this SET as claimed to prevent duplicate scoring
             set_key = frozenset([card1, card2, card3])
             self.claimed_sets[set_key] = time.time()
+            self.last_claimed_set = {card1, card2, card3}
+            self.last_claimed_by = claimed_by
+            self.last_claimed_time = time.time()
             
             print("set found succesfully")
             return True
@@ -385,6 +390,8 @@ class Board():
             self.claimed_sets.clear()
             self.last_detected_human_set = None
             self.last_claimed_set.clear()
+            self.last_claimed_by = None
+            self.last_claimed_time = None
             
             print("[Board] Reset complete")
     
